@@ -1,0 +1,27 @@
+[workspace.package]
+version = "0.0.1"
+authors = ["Project AIRI"]
+edition = "2024"
+rust-version = "1.80"
+readme = "README.md"
+homepage = "https://github.com/proj-airi/candle-examples"
+repository = "https://github.com/proj-airi/candle-examples"
+license = "MIT"
+publish = false
+
+[workspace]
+resolver = "3"
+members = [ "apps/candle-example-whisper-realtime"]
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = "z"
+panic = "abort"
+strip = "symbols"
