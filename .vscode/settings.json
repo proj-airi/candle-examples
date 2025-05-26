@@ -1,22 +1,4 @@
 {
-  "cSpell.words": [
-    "byteorder",
-    "cuda",
-    "distil",
-    "DTYPE",
-    "gguf",
-    "logits",
-    "logprob",
-    "melfilters",
-    "mmaped",
-    "probs",
-    "Resampler",
-    "rngs",
-    "safetensors",
-    "Seedable",
-    "softmax",
-    "unsqueeze"
-  ],
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
     "editor.formatOnSave": true

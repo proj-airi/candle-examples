@@ -1,0 +1,24 @@
+version: "0.2"
+ignorePaths: []
+dictionaryDefinitions: []
+dictionaries: []
+words:
+  - AIRI
+  - byteorder
+  - cuda
+  - distil
+  - DTYPE
+  - gguf
+  - logits
+  - logprob
+  - melfilters
+  - mmaped
+  - probs
+  - Resampler
+  - rngs
+  - safetensors
+  - Seedable
+  - softmax
+  - unsqueeze
+ignoreWords: []
+import: []
