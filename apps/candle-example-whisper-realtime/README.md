@@ -25,3 +25,9 @@ cargo build --package candle-example-whisper-realtime --features cuda
 ```
 cargo build --package candle-example-whisper-realtime --features metal
 ```
+
+## Acknowledgements
+
+- [candle/candle-examples/examples/whisper-microphone](https://github.com/huggingface/candle/tree/main/candle-examples/examples/whisper-microphone)
+- [candle/candle-examples/examples/whisper](https://github.com/huggingface/candle/tree/main/candle-examples/examples/whisper)
+- [candle/candle-wasm-examples/whisper](https://github.com/huggingface/candle/tree/main/candle-wasm-examples/whisper)
