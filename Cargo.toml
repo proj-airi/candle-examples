@@ -11,7 +11,10 @@ publish = false
 
 [workspace]
 resolver = "3"
-members = [ "apps/candle-example-whisper-mic"]
+members = [
+    "apps/candle-example-whisper-mic",
+    "apps/candle-example-silero-vad",
+]
 
 [profile.dev]
 opt-level = 1
