@@ -11,7 +11,7 @@ publish = false
 
 [workspace]
 resolver = "3"
-members = [ "apps/candle-example-whisper-realtime"]
+members = [ "apps/candle-example-whisper-mic"]
 
 [profile.dev]
 opt-level = 1

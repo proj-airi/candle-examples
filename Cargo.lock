@@ -287,7 +287,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "candle-example-whisper-realtime"
+name = "candle-example-whisper-mic"
 version = "0.1.0"
 dependencies = [
  "anyhow",
