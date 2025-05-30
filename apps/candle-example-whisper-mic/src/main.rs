@@ -1,10 +1,15 @@
 use anyhow::{Error, Result};
+use byteorder::{ByteOrder, LittleEndian};
 use candle_core::{Device, IndexOp, Tensor};
 use candle_nn::{VarBuilder, ops::softmax};
 use candle_transformers::models::whisper::{self as whisper_model, Config, audio};
 use clap::{Parser, ValueEnum};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use hf_hub::{Repo, RepoType, api::sync::Api};
 use rand::{SeedableRng, distr::Distribution};
 use tokenizers::Tokenizer;
+use tracing_chrome::ChromeLayerBuilder;
+use tracing_subscriber::prelude::*;
 
 mod multilingual;
 
@@ -121,7 +126,7 @@ impl Decoder {
     // Suppress the no_timestamps_token when in timestamps mode.
     // https://github.com/openai/whisper/blob/e8622f9afc4eba139bf796c210f5c01081000472/whisper/decoding.py#L452
     #[allow(clippy::cast_possible_truncation)]
-    let suppress_tokens: Vec<f32> = (0 .. model.config().vocab_size as u32).map(|i| if model.config().suppress_tokens.contains(&i) || timestamps && i == no_timestamps_token { f32::NEG_INFINITY } else { 0f32 }).collect();
+    let suppress_tokens: Vec<f32> = (0..model.config().vocab_size as u32).map(|i| if model.config().suppress_tokens.contains(&i) || timestamps && i == no_timestamps_token { f32::NEG_INFINITY } else { 0f32 }).collect();
 
     let suppress_tokens = Tensor::new(suppress_tokens.as_slice(), device)?;
     let sot_token = token_id(&tokenizer, whisper_model::SOT_TOKEN)?;
@@ -175,7 +180,7 @@ impl Decoder {
     }
 
     #[allow(clippy::cast_lossless)]
-    for i in 0 .. sample_len {
+    for i in 0..sample_len {
       let tokens_t = Tensor::new(tokens.as_slice(), mel.device())?;
 
       // The model expects a batch dim but this inference loop does not handle
@@ -186,13 +191,13 @@ impl Decoder {
       // Extract the no speech probability on the first iteration by looking at the first
       // token logits and the probability for the according token.
       if i == 0 {
-        let logits = model.decoder_final_linear(&ys.i(.. 1)?)?.i(0)?.i(0)?;
+        let logits = model.decoder_final_linear(&ys.i(..1)?)?.i(0)?.i(0)?;
         no_speech_prob = softmax(&logits, 0)?.i(self.no_speech_token as usize)?.to_scalar::<f32>()? as f64;
       }
 
       let (_, seq_len, _) = ys.dims3()?;
       #[allow(clippy::cast_precision_loss)]
-      let logits = model.decoder_final_linear(&ys.i((.. 1, seq_len - 1 ..))?)?.i(0)?.i(0)?;
+      let logits = model.decoder_final_linear(&ys.i((..1, seq_len - 1..))?)?.i(0)?.i(0)?;
       // TODO: Besides suppress tokens, we should apply the heuristics from
       // ApplyTimestampRules, i.e.:
       // - Timestamps come in pairs, except before EOT.
@@ -213,6 +218,7 @@ impl Decoder {
         #[allow(clippy::cast_possible_truncation)]
         logits_v.iter().enumerate().max_by(|(_, u), (_, v)| u.total_cmp(v)).map(|(i, _)| i as u32).unwrap()
       };
+
       tokens.push(next_token);
 
       #[allow(clippy::cast_precision_loss, clippy::cast_lossless)]
@@ -220,8 +226,10 @@ impl Decoder {
       if next_token == self.eot_token || tokens.len() > model.config().max_target_positions {
         break;
       }
+
       sum_logprob += prob.ln();
     }
+
     let text = self.tokenizer.decode(&tokens, true).map_err(Error::msg)?;
 
     #[allow(clippy::cast_precision_loss)]
@@ -257,6 +265,7 @@ impl Decoder {
     let (_, _, content_frames) = mel.dims3()?;
     let mut seek = 0;
     let mut segments = vec![];
+
     while seek < content_frames {
       let start = std::time::Instant::now();
 
@@ -279,12 +288,14 @@ impl Decoder {
 
       if self.timestamps {
         println!("{:.1}s -- {:.1}s", segment.start, segment.start + segment.duration,);
+
         let mut tokens_to_decode = vec![];
         let mut prev_timestamp_s = 0f32;
         for &token in &segment.dr.tokens {
           if token == self.sot_token || token == self.eot_token {
             continue;
           }
+
           // The no_timestamp_token is the last before the timestamp ones.
           if token > self.no_timestamps_token {
             #[allow(clippy::cast_precision_loss)]
@@ -296,6 +307,7 @@ impl Decoder {
 
               tokens_to_decode.clear();
             }
+
             prev_timestamp_s = timestamp_s;
           } else {
             tokens_to_decode.push(token);
@@ -322,6 +334,7 @@ impl Decoder {
       if self.verbose {
         println!("{seek}: {segment:?}, in {:?}", start.elapsed());
       }
+
       segments.push(segment);
     }
 
@@ -451,11 +464,6 @@ struct Args {
 
 #[allow(clippy::too_many_lines)]
 fn main() -> Result<()> {
-  use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-  use hf_hub::{Repo, RepoType, api::sync::Api};
-  use tracing_chrome::ChromeLayerBuilder;
-  use tracing_subscriber::prelude::*;
-
   let args = Args::parse();
   let _guard = if args.tracing {
     let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
@@ -464,6 +472,7 @@ fn main() -> Result<()> {
   } else {
     None
   };
+
   let device = device(args.cpu)?;
   let (default_model, default_revision) = if args.quantized { ("lmz/candle-whisper", "main") } else { args.model.model_and_revision() };
 
@@ -485,6 +494,7 @@ fn main() -> Result<()> {
         WhichModel::Tiny => "tiny",
         _ => unimplemented!("no quantized support for {:?}", args.model),
       };
+
       (repo.get(&format!("config-{ext}.json"))?, repo.get(&format!("tokenizer-{ext}.json"))?, repo.get(&format!("model-{ext}-q80.gguf"))?)
     } else {
       let config = repo.get("config.json")?;
@@ -497,6 +507,7 @@ fn main() -> Result<()> {
 
   let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
   let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(Error::msg)?;
+
   let model = if args.quantized {
     let vb = candle_transformers::quantized_var_builder::VarBuilder::from_gguf(&weights_filename, &device)?;
     WhisperModel::Quantized(whisper_model::quantized_model::Whisper::load(&vb, config.clone())?)
@@ -504,6 +515,7 @@ fn main() -> Result<()> {
     let vb = unsafe { VarBuilder::from_mmaped_safetensors(&[weights_filename], whisper_model::DTYPE, &device)? };
     WhisperModel::Normal(whisper_model::model::Whisper::load(&vb, config.clone())?)
   };
+
   let mut decoder = Decoder::new(model, tokenizer.clone(), args.seed, &device, /* language_token */ None, args.task, args.timestamps, args.verbose)?;
 
   let mel_bytes = match config.num_mel_bins {
@@ -511,8 +523,9 @@ fn main() -> Result<()> {
     128 => include_bytes!("../melfilters128.bytes").as_slice(),
     num_mel_bins => anyhow::bail!("unexpected num_mel_bins {num_mel_bins}"),
   };
+
   let mut mel_filters = vec![0f32; mel_bytes.len() / 4];
-  <byteorder::LittleEndian as byteorder::ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
+  <LittleEndian as ByteOrder>::read_f32_into(mel_bytes, &mut mel_filters);
 
   // =====
   // Audio
@@ -550,6 +563,7 @@ fn main() -> Result<()> {
     },
     None,
   )?;
+
   stream.play()?;
 
   // loop to process the audio data forever (until the user stops the program)
@@ -563,28 +577,33 @@ fn main() -> Result<()> {
     if buffered_pcm.len() < 10 * in_sample_rate {
       continue;
     }
+
     let mut resampled_pcm = vec![];
     // resample the audio, one chunk of 1024 samples at a time.
     // in case the audio input failed to produce an exact multiple of 1024 samples,
     // process the remainder on the next iteration of the loop.
     let full_chunks = buffered_pcm.len() / 1024;
     let remainder = buffered_pcm.len() % 1024;
-    for chunk in 0 .. full_chunks {
-      let buffered_pcm = &buffered_pcm[chunk * 1024 .. (chunk + 1) * 1024];
+
+    for chunk in 0..full_chunks {
+      let buffered_pcm = &buffered_pcm[chunk * 1024..(chunk + 1) * 1024];
       let pcm = resampler.process(&[&buffered_pcm], None)?;
       resampled_pcm.extend_from_slice(&pcm[0]);
     }
+
     let pcm = resampled_pcm;
     println!("{} {}", buffered_pcm.len(), pcm.len());
+
     if remainder == 0 {
       buffered_pcm.clear();
     } else {
       // efficiently copy the remainder to the beginning of the `buffered_pcm` buffer and
       // truncate it.  That's more efficient then allocating a new vector and copying into it
       println!("audio device produced partial chunk with {remainder} samples; processing the remainder on the next iteration of the loop");
-      buffered_pcm.copy_within(full_chunks * 1024 .., 0);
+      buffered_pcm.copy_within(full_chunks * 1024.., 0);
       buffered_pcm.truncate(remainder);
     }
+
     let mel = audio::pcm_to_mel(&config, &pcm, &mel_filters);
     let mel_len = mel.len();
     let mel = Tensor::from_vec(mel, (1, config.num_mel_bins, mel_len / config.num_mel_bins), &device)?;
@@ -603,9 +622,11 @@ fn main() -> Result<()> {
         },
       };
       println!("language_token: {language_token:?}");
+
       decoder.set_language_token(language_token);
       language_token_set = true;
     }
+
     decoder.run(&mel, None)?;
     decoder.reset_kv_cache();
   }
