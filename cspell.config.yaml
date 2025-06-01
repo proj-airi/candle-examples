@@ -5,8 +5,10 @@ dictionaries: []
 words:
   - AIRI
   - byteorder
+  - clippy
   - cuda
   - distil
+  - dtolnay
   - DTYPE
   - gguf
   - logits
