@@ -23,9 +23,11 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
 
-      - name: Lint
-        run: cargo +nightly fmt --all --check
+      - name: Rustfmt Check
+        uses: actions-rust-lang/rustfmt@v1
 
   lint:
     name: Lint
@@ -36,6 +38,8 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
 
       - name: Lint
         run: cargo clippy -- -W clippy::pedantic -W clippy::nursery -A clippy::missing-errors-doc -A clippy::module_name_repetitions
