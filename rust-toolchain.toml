@@ -3,5 +3,11 @@
 [toolchain]
 channel = "nightly"
 # https://rust-lang.github.io/rustup/concepts/components.html
-components = ["rustc", "cargo", "rustfmt", "rust-analyzer", "clippy"]
+components = [
+  "rustc",
+  "cargo",
+  "rustfmt",
+  "rust-analyzer",
+  "clippy"
+]
 profile = "minimal"

@@ -12,9 +12,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # https://github.com/Mozilla-Actions/sccache-action#rust-code
-  RUSTC_WRAPPER: "sccache"
-  SCCACHE_GHA_ENABLED: "true"
 
 jobs:
   fmt:
@@ -26,9 +23,6 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
 
       - name: Lint
         run: cargo +nightly fmt --all --check
@@ -43,9 +37,6 @@ jobs:
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
 
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
-
       - name: Lint
         run: cargo clippy -- -W clippy::pedantic -W clippy::nursery -A clippy::missing-errors-doc -A clippy::module_name_repetitions
 
@@ -58,9 +49,6 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@nightly
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
 
       - name: Check
         run: cargo check --all
