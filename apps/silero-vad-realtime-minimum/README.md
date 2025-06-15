@@ -6,6 +6,8 @@
 >
 > For more advanced version with state management and threshold control of both silent and speaking duration, see [apps/silero-vad-realtime](https://github.com/proj-airi/candle-examples/tree/main/apps/silero-vad-realtime).
 
+![](./docs/demo.svg)
+
 ## Getting started
 
 ```
