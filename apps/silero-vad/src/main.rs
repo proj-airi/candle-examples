@@ -83,7 +83,7 @@ impl<R: std::io::Read> Iterator for AudioFrameReader<R> {
           [a, b] => i16::from_le_bytes([*a, *b]),
           _ => unreachable!(),
         })
-        .map(|sample| sample as f32 / i16::MAX as f32)
+        .map(|sample| f32::from(sample) / f32::from(i16::MAX))
         .collect();
 
       self.bytes_read = 0;
@@ -192,15 +192,12 @@ fn main() -> Result<()> {
   let model = load_model()?;
   let mut vad = VADState::new(model, i64::from(args.sample_rate), device)?;
 
-  let input: Box<dyn std::io::Read> = match &args.file {
-    Some(file_path) => {
-      println!("Reading from file: {}", file_path.display());
-      Box::new(File::open(file_path)?)
-    },
-    None => {
-      println!("Reading from stdin");
-      Box::new(std::io::stdin().lock())
-    },
+  let input: Box<dyn std::io::Read> = if let Some(file_path) = &args.file {
+    println!("Reading from file: {}", file_path.display());
+    Box::new(File::open(file_path)?)
+  } else {
+    println!("Reading from stdin");
+    Box::new(std::io::stdin().lock())
   };
 
   let threshold = 0.3;
@@ -245,6 +242,7 @@ fn main() -> Result<()> {
   }
 
   if !predictions.is_empty() {
+    #[allow(clippy::cast_precision_loss)]
     let average_prediction = predictions.iter().sum::<f32>() / predictions.len() as f32;
     println!("VAD average prediction: {average_prediction:.3}");
   }
