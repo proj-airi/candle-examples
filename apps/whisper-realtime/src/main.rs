@@ -13,6 +13,9 @@ use tracing_subscriber::prelude::*;
 
 mod multilingual;
 
+const WINDOW_SIZE: usize = 5; // 5 seconds
+const OVERLAP_SIZE: usize = 1; // 1 second overlap
+
 pub enum WhisperModel {
   Normal(whisper_model::model::Whisper),
   Quantized(whisper_model::quantized_model::Whisper),
@@ -660,7 +663,7 @@ fn main() -> Result<()> {
     use rubato::Resampler;
 
     buffered_pcm.extend_from_slice(&pcm);
-    if buffered_pcm.len() < 10 * in_sample_rate {
+    if buffered_pcm.len() < WINDOW_SIZE * in_sample_rate {
       continue;
     }
 
@@ -686,8 +689,10 @@ fn main() -> Result<()> {
       // efficiently copy the remainder to the beginning of the `buffered_pcm` buffer and
       // truncate it.  That's more efficient then allocating a new vector and copying into it
       println!("audio device produced partial chunk with {remainder} samples; processing the remainder on the next iteration of the loop");
-      buffered_pcm.copy_within(full_chunks * 1024.., 0);
-      buffered_pcm.truncate(remainder);
+      let keep_samples = OVERLAP_SIZE * in_sample_rate;
+      let buffered_len = buffered_pcm.len();
+      buffered_pcm.copy_within(buffered_len - keep_samples.., 0);
+      buffered_pcm.truncate(keep_samples);
     }
 
     let mel = audio::pcm_to_mel(&config, &pcm, &mel_filters);
