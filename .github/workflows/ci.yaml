@@ -26,6 +26,18 @@ jobs:
         with:
           components: rustfmt
 
+      # diwic/alsa-sys: Rust raw FFI bindings for ALSA
+      # https://github.com/diwic/alsa-sys
+      # Failed to run custom build command · Issue #183 · Spotifyd/spotifyd
+      # https://github.com/Spotifyd/spotifyd/issues/183#issuecomment-476384541
+      - run: |
+          sudo apt-get install -y \
+            libasound2-dev \
+            portaudio19-dev \
+            build-essential \
+            libpulse-dev \
+            libdbus-1-dev
+
       - name: Rustfmt Check
         uses: actions-rust-lang/rustfmt@v1
 
@@ -41,6 +53,18 @@ jobs:
         with:
           components: clippy
 
+      # diwic/alsa-sys: Rust raw FFI bindings for ALSA
+      # https://github.com/diwic/alsa-sys
+      # Failed to run custom build command · Issue #183 · Spotifyd/spotifyd
+      # https://github.com/Spotifyd/spotifyd/issues/183#issuecomment-476384541
+      - run: |
+          sudo apt-get install -y \
+            libasound2-dev \
+            portaudio19-dev \
+            build-essential \
+            libpulse-dev \
+            libdbus-1-dev
+
       - name: Lint
         run: cargo clippy -- -W clippy::pedantic -W clippy::nursery -A clippy::missing-errors-doc -A clippy::module_name_repetitions
 
@@ -53,6 +77,19 @@ jobs:
 
       - name: Install Rust Toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
+
+
+      # diwic/alsa-sys: Rust raw FFI bindings for ALSA
+      # https://github.com/diwic/alsa-sys
+      # Failed to run custom build command · Issue #183 · Spotifyd/spotifyd
+      # https://github.com/Spotifyd/spotifyd/issues/183#issuecomment-476384541
+      - run: |
+          sudo apt-get install -y \
+            libasound2-dev \
+            portaudio19-dev \
+            build-essential \
+            libpulse-dev \
+            libdbus-1-dev
 
       - name: Check
         run: cargo check --all
