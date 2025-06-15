@@ -287,13 +287,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "candle-example-silero-vad"
+name = "candle-example-minimum-silero-vad"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
  "candle-core",
- "candle-nn",
  "candle-onnx",
  "candle-transformers",
  "clap",
@@ -316,6 +315,7 @@ dependencies = [
  "byteorder",
  "candle-core",
  "candle-nn",
+ "candle-onnx",
  "candle-transformers",
  "clap",
  "cpal",
