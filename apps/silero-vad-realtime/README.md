@@ -4,6 +4,8 @@
 >
 > So consider this is a more advanced and feature rich version of the `silero-vad-realtime-minimum` example. Where it suitable in more scenarios instead of detecting only the probability of silence or speech.
 
+![](./docs/demo.svg)
+
 ## Getting started
 
 ```
@@ -28,6 +30,12 @@ cargo build --package silero-vad-realtime
 
 ```
 cargo build --package silero-vad-realtime
+```
+
+## Run
+
+```shell
+cargo run --package silero-vad-realtime
 ```
 
 ## Acknowledgements
