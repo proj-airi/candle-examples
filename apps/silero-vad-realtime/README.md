@@ -34,6 +34,8 @@ cargo build --package silero-vad-realtime
 
 ## Run
 
+### Any platforms
+
 ```shell
 cargo run --package silero-vad-realtime
 ```

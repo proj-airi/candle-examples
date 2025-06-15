@@ -34,6 +34,14 @@ cargo build --package silero-vad-realtime-minimum
 cargo build --package silero-vad-realtime-minimum
 ```
 
+## Run
+
+### Any platforms
+
+```shell
+cargo run --package silero-vad-realtime-minimum
+```
+
 ## Acknowledgements
 
 - [candle/candle-examples/examples/silero-vad](https://github.com/huggingface/candle/tree/main/candle-examples/examples/silero-vad)
