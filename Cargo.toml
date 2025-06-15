@@ -12,6 +12,7 @@ publish = false
 [workspace]
 resolver = "3"
 members = [
+    "apps/silero-vad",
     "apps/silero-vad-realtime",
     "apps/silero-vad-realtime-minimum",
     "apps/whisper-realtime",
