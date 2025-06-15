@@ -74,3 +74,7 @@ cargo build --features metal
 - [`inventory`](https://github.com/moeru-ai/inventory): Centralized model catalog and default provider configurations backend service
 - [MCP Launcher](https://github.com/moeru-ai/mcp-launcher): Easy to use MCP builder & launcher for all possible MCP servers, just like Ollama for models!
 - [🥺 SAD](https://github.com/moeru-ai/sad): Documentation and notes for self-host and browser running LLMs.
+
+## Ackowledgements
+
+- Nice tool [marionebl/svg-term-cli: Share terminal sessions via SVG and CSS](https://github.com/marionebl/svg-term-cli) for converting and rendering [asciinema](https://asciinema.org/) recordings as animated SVG to be able to embed and play in GitHub README.md.
