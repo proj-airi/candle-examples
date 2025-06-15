@@ -1,5 +1,7 @@
 # whisper-realtime
 
+![](./docs/demo.svg)
+
 ## Getting started
 
 ```
@@ -24,6 +26,20 @@ cargo build --package whisper-realtime --features cuda
 
 ```
 cargo build --package whisper-realtime --features metal
+```
+
+## Run
+
+### NVIDIA CUDA
+
+```shell
+cargo run --package whisper-realtime --features cuda
+```
+
+### macOS
+
+```shell
+cargo run --package whisper-realtime --features metal
 ```
 
 ## Acknowledgements
