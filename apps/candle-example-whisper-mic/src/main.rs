@@ -24,7 +24,10 @@ enum Task {
   Translate,
 }
 
-pub fn token_id(tokenizer: &Tokenizer, token: &str) -> candle_core::Result<u32> {
+pub fn token_id(
+  tokenizer: &Tokenizer,
+  token: &str,
+) -> candle_core::Result<u32> {
   match tokenizer.token_to_id(token) {
     None => candle_core::bail!("no token-id for {token}"),
     Some(id) => Ok(id),
@@ -39,21 +42,33 @@ impl WhisperModel {
     }
   }
 
-  pub fn encoder_forward(&mut self, x: &Tensor, flush: bool) -> candle_core::Result<Tensor> {
+  pub fn encoder_forward(
+    &mut self,
+    x: &Tensor,
+    flush: bool,
+  ) -> candle_core::Result<Tensor> {
     match self {
       Self::Normal(m) => m.encoder.forward(x, flush),
       Self::Quantized(m) => m.encoder.forward(x, flush),
     }
   }
 
-  pub fn decoder_forward(&mut self, x: &Tensor, xa: &Tensor, flush: bool) -> candle_core::Result<Tensor> {
+  pub fn decoder_forward(
+    &mut self,
+    x: &Tensor,
+    xa: &Tensor,
+    flush: bool,
+  ) -> candle_core::Result<Tensor> {
     match self {
       Self::Normal(m) => m.decoder.forward(x, xa, flush),
       Self::Quantized(m) => m.decoder.forward(x, xa, flush),
     }
   }
 
-  pub fn decoder_final_linear(&self, x: &Tensor) -> candle_core::Result<Tensor> {
+  pub fn decoder_final_linear(
+    &self,
+    x: &Tensor,
+  ) -> candle_core::Result<Tensor> {
     match self {
       Self::Normal(m) => m.decoder.final_linear(x),
       Self::Quantized(m) => m.decoder.final_linear(x),
@@ -120,20 +135,39 @@ struct Decoder {
 
 impl Decoder {
   #[allow(clippy::too_many_arguments)]
-  fn new(model: WhisperModel, tokenizer: Tokenizer, seed: u64, device: &Device, language_token: Option<u32>, task: Option<Task>, timestamps: bool, verbose: bool) -> Result<Self> {
+  fn new(
+    model: WhisperModel,
+    tokenizer: Tokenizer,
+    seed: u64,
+    device: &Device,
+    language_token: Option<u32>,
+    task: Option<Task>,
+    timestamps: bool,
+    verbose: bool,
+  ) -> Result<Self> {
     let no_timestamps_token = token_id(&tokenizer, whisper_model::NO_TIMESTAMPS_TOKEN)?;
 
     // Suppress the no_timestamps_token when in timestamps mode.
     // https://github.com/openai/whisper/blob/e8622f9afc4eba139bf796c210f5c01081000472/whisper/decoding.py#L452
     #[allow(clippy::cast_possible_truncation)]
-    let suppress_tokens: Vec<f32> = (0..model.config().vocab_size as u32).map(|i| if model.config().suppress_tokens.contains(&i) || timestamps && i == no_timestamps_token { f32::NEG_INFINITY } else { 0f32 }).collect();
+    let suppress_tokens: Vec<f32> = (0..model.config().vocab_size as u32)
+      .map(|i| {
+        if model.config().suppress_tokens.contains(&i) || timestamps && i == no_timestamps_token {
+          f32::NEG_INFINITY
+        } else {
+          0f32
+        }
+      })
+      .collect();
 
     let suppress_tokens = Tensor::new(suppress_tokens.as_slice(), device)?;
     let sot_token = token_id(&tokenizer, whisper_model::SOT_TOKEN)?;
     let transcribe_token = token_id(&tokenizer, whisper_model::TRANSCRIBE_TOKEN)?;
     let translate_token = token_id(&tokenizer, whisper_model::TRANSLATE_TOKEN)?;
     let eot_token = token_id(&tokenizer, whisper_model::EOT_TOKEN)?;
-    let no_speech_token = whisper_model::NO_SPEECH_TOKENS.iter().find_map(|t| token_id(&tokenizer, t).ok());
+    let no_speech_token = whisper_model::NO_SPEECH_TOKENS
+      .iter()
+      .find_map(|t| token_id(&tokenizer, t).ok());
     let Some(no_speech_token) = no_speech_token else { anyhow::bail!("unable to find any non-speech token") };
     let rng = rand::rngs::StdRng::seed_from_u64(seed);
 
@@ -155,7 +189,11 @@ impl Decoder {
     })
   }
 
-  fn decode(&mut self, mel: &Tensor, t: f64) -> Result<DecodingResult> {
+  fn decode(
+    &mut self,
+    mel: &Tensor,
+    t: f64,
+  ) -> Result<DecodingResult> {
     let model = &mut self.model;
     let audio_features = model.encoder_forward(mel, true)?;
     if self.verbose {
@@ -191,13 +229,21 @@ impl Decoder {
       // Extract the no speech probability on the first iteration by looking at the first
       // token logits and the probability for the according token.
       if i == 0 {
-        let logits = model.decoder_final_linear(&ys.i(..1)?)?.i(0)?.i(0)?;
-        no_speech_prob = softmax(&logits, 0)?.i(self.no_speech_token as usize)?.to_scalar::<f32>()? as f64;
+        let logits = model
+          .decoder_final_linear(&ys.i(..1)?)?
+          .i(0)?
+          .i(0)?;
+        no_speech_prob = softmax(&logits, 0)?
+          .i(self.no_speech_token as usize)?
+          .to_scalar::<f32>()? as f64;
       }
 
       let (_, seq_len, _) = ys.dims3()?;
       #[allow(clippy::cast_precision_loss)]
-      let logits = model.decoder_final_linear(&ys.i((..1, seq_len - 1..))?)?.i(0)?.i(0)?;
+      let logits = model
+        .decoder_final_linear(&ys.i((..1, seq_len - 1..))?)?
+        .i(0)?
+        .i(0)?;
       // TODO: Besides suppress tokens, we should apply the heuristics from
       // ApplyTimestampRules, i.e.:
       // - Timestamps come in pairs, except before EOT.
@@ -216,13 +262,20 @@ impl Decoder {
       } else {
         let logits_v: Vec<f32> = logits.to_vec1()?;
         #[allow(clippy::cast_possible_truncation)]
-        logits_v.iter().enumerate().max_by(|(_, u), (_, v)| u.total_cmp(v)).map(|(i, _)| i as u32).unwrap()
+        logits_v
+          .iter()
+          .enumerate()
+          .max_by(|(_, u), (_, v)| u.total_cmp(v))
+          .map(|(i, _)| i as u32)
+          .unwrap()
       };
 
       tokens.push(next_token);
 
       #[allow(clippy::cast_precision_loss, clippy::cast_lossless)]
-      let prob = softmax(&logits, candle_core::D::Minus1)?.i(next_token as usize)?.to_scalar::<f32>()? as f64;
+      let prob = softmax(&logits, candle_core::D::Minus1)?
+        .i(next_token as usize)?
+        .to_scalar::<f32>()? as f64;
       if next_token == self.eot_token || tokens.len() > model.config().max_target_positions {
         break;
       }
@@ -230,7 +283,10 @@ impl Decoder {
       sum_logprob += prob.ln();
     }
 
-    let text = self.tokenizer.decode(&tokens, true).map_err(Error::msg)?;
+    let text = self
+      .tokenizer
+      .decode(&tokens, true)
+      .map_err(Error::msg)?;
 
     #[allow(clippy::cast_precision_loss)]
     let avg_logprob = sum_logprob / tokens.len() as f64;
@@ -238,7 +294,10 @@ impl Decoder {
     Ok(DecodingResult { tokens, text, avg_logprob, no_speech_prob, temperature: t, compression_ratio: f64::NAN })
   }
 
-  fn decode_with_fallback(&mut self, segment: &Tensor) -> Result<DecodingResult> {
+  fn decode_with_fallback(
+    &mut self,
+    segment: &Tensor,
+  ) -> Result<DecodingResult> {
     for (i, &t) in whisper_model::TEMPERATURES.iter().enumerate() {
       let dr: Result<DecodingResult> = self.decode(segment, t);
       if i == whisper_model::TEMPERATURES.len() - 1 {
@@ -261,7 +320,11 @@ impl Decoder {
     unreachable!();
   }
 
-  fn run(&mut self, mel: &Tensor, times: Option<(f64, f64)>) -> Result<Vec<Segment>> {
+  fn run(
+    &mut self,
+    mel: &Tensor,
+    times: Option<(f64, f64)>,
+  ) -> Result<Vec<Segment>> {
     let (_, _, content_frames) = mel.dims3()?;
     let mut seek = 0;
     let mut segments = vec![];
@@ -302,7 +365,10 @@ impl Decoder {
             let timestamp_s = (token - self.no_timestamps_token + 1) as f32 / 50.;
 
             if !tokens_to_decode.is_empty() {
-              let text = self.tokenizer.decode(&tokens_to_decode, true).map_err(Error::msg)?;
+              let text = self
+                .tokenizer
+                .decode(&tokens_to_decode, true)
+                .map_err(Error::msg)?;
               println!("  {prev_timestamp_s:.1}s-{timestamp_s:.1}s: {text}");
 
               tokens_to_decode.clear();
@@ -314,7 +380,10 @@ impl Decoder {
           }
         }
         if !tokens_to_decode.is_empty() {
-          let text = self.tokenizer.decode(&tokens_to_decode, true).map_err(Error::msg)?;
+          let text = self
+            .tokenizer
+            .decode(&tokens_to_decode, true)
+            .map_err(Error::msg)?;
           if !text.is_empty() {
             println!("  {prev_timestamp_s:.1}s-...: {text}");
           }
@@ -341,7 +410,10 @@ impl Decoder {
     Ok(segments)
   }
 
-  const fn set_language_token(&mut self, language_token: Option<u32>) {
+  const fn set_language_token(
+    &mut self,
+    language_token: Option<u32>,
+  ) {
     self.language_token = language_token;
   }
 
@@ -467,14 +539,20 @@ fn main() -> Result<()> {
   let args = Args::parse();
   let _guard = if args.tracing {
     let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
-    tracing_subscriber::registry().with(chrome_layer).init();
+    tracing_subscriber::registry()
+      .with(chrome_layer)
+      .init();
     Some(guard)
   } else {
     None
   };
 
   let device = device(args.cpu)?;
-  let (default_model, default_revision) = if args.quantized { ("lmz/candle-whisper", "main") } else { args.model.model_and_revision() };
+  let (default_model, default_revision) = if args.quantized {
+    ("lmz/candle-whisper", "main")
+  } else {
+    args.model.model_and_revision()
+  };
 
   let default_model = default_model.to_string();
   let default_revision = default_revision.to_string();
@@ -535,11 +613,15 @@ fn main() -> Result<()> {
   let host = cpal::default_host();
   let audio_device = match args.device.as_ref() {
     None => host.default_input_device(),
-    Some(device) => host.input_devices()?.find(|x| x.name().is_ok_and(|y| &y == device)),
+    Some(device) => host
+      .input_devices()?
+      .find(|x| x.name().is_ok_and(|y| &y == device)),
   }
   .expect("failed to find the audio input device");
 
-  let audio_config = audio_device.default_input_config().expect("Failed to get default input config");
+  let audio_config = audio_device
+    .default_input_config()
+    .expect("Failed to get default input config");
   println!("audio config {audio_config:?}");
 
   let channel_count = audio_config.channels() as usize;
@@ -553,7 +635,11 @@ fn main() -> Result<()> {
   let stream = audio_device.build_input_stream(
     &audio_config.config(),
     move |pcm: &[f32], _: &cpal::InputCallbackInfo| {
-      let pcm = pcm.iter().step_by(channel_count).copied().collect::<Vec<f32>>();
+      let pcm = pcm
+        .iter()
+        .step_by(channel_count)
+        .copied()
+        .collect::<Vec<f32>>();
       if !pcm.is_empty() {
         tx.send(pcm).unwrap();
       }

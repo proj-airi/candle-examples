@@ -15,16 +15,3 @@ members = [
     "apps/candle-example-whisper-mic",
     "apps/candle-example-silero-vad",
 ]
-
-[profile.dev]
-opt-level = 1
-
-[profile.dev.package."*"]
-opt-level = 3
-
-[profile.release]
-codegen-units = 1
-lto = "fat"
-opt-level = "z"
-panic = "abort"
-strip = "symbols"
