@@ -1,5 +1,5 @@
 [package]
-name = "candle-example-minimum-silero-vad"
+name = "whisper-realtime"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,8 +7,9 @@ edition = "2024"
 anyhow = "1.0.98"
 byteorder = "1.5.0"
 candle-core = { version = "0.9.1" }
-candle-onnx = "0.9.1"
+candle-nn = { version = "0.9.1" }
 candle-transformers = { version = "0.9.1" }
+candle-onnx = { version = "0.9.1", optional = true }
 clap = { version = "4.5.38", features = ["derive"] }
 cpal = "0.15.3"
 hf-hub = "0.4.2"
@@ -22,3 +23,16 @@ tracing-subscriber = "0.3.19"
 
 [features]
 default = []
+metal = [
+    "candle-core/metal",
+    "candle-nn/metal",
+    "candle-transformers/metal"
+]
+cuda = [
+    "candle-core/cuda",
+    "candle-nn/cuda",
+    "candle-transformers/cuda"
+]
+onnx = [
+    "candle-onnx",
+]

@@ -287,49 +287,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "candle-example-minimum-silero-vad"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "byteorder",
- "candle-core",
- "candle-onnx",
- "candle-transformers",
- "clap",
- "cpal",
- "hf-hub",
- "rand 0.9.1",
- "rubato",
- "serde_json",
- "symphonia",
- "tokenizers",
- "tracing-chrome",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "candle-example-whisper-mic"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "byteorder",
- "candle-core",
- "candle-nn",
- "candle-onnx",
- "candle-transformers",
- "clap",
- "cpal",
- "hf-hub",
- "rand 0.9.1",
- "rubato",
- "serde_json",
- "symphonia",
- "tokenizers",
- "tracing-chrome",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "candle-kernels"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2869,6 +2826,48 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
+name = "silero-vad-realtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "candle-core",
+ "candle-onnx",
+ "candle-transformers",
+ "clap",
+ "cpal",
+ "hf-hub",
+ "rand 0.9.1",
+ "rubato",
+ "serde_json",
+ "symphonia",
+ "tokenizers",
+ "tracing-chrome",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "silero-vad-realtime-minimum"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "candle-core",
+ "candle-onnx",
+ "candle-transformers",
+ "clap",
+ "cpal",
+ "hf-hub",
+ "rand 0.9.1",
+ "rubato",
+ "serde_json",
+ "symphonia",
+ "tokenizers",
+ "tracing-chrome",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3748,6 +3747,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2853738d1cc4f2da3a225c18ec6c3721abb31961096e9dbf5ab35fa88b19cfdb"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "whisper-realtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "candle-core",
+ "candle-nn",
+ "candle-onnx",
+ "candle-transformers",
+ "clap",
+ "cpal",
+ "hf-hub",
+ "rand 0.9.1",
+ "rubato",
+ "serde_json",
+ "symphonia",
+ "tokenizers",
+ "tracing-chrome",
+ "tracing-subscriber",
 ]
 
 [[package]]

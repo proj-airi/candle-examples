@@ -1,10 +1,10 @@
-# candle-example-whisper-mic
+# whisper-realtime
 
 ## Getting started
 
 ```
 git clone https://github.com/proj-airi/candle-examples.git
-cd apps/candle-example-whisper-mic
+cd apps/whisper-realtime
 ```
 
 ## Build
@@ -17,13 +17,13 @@ cargo clean
 ### NVIDIA CUDA
 
 ```
-cargo build --package candle-example-whisper-mic --features cuda
+cargo build --package whisper-realtime --features cuda
 ```
 
 ### macOS
 
 ```
-cargo build --package candle-example-whisper-mic --features metal
+cargo build --package whisper-realtime --features metal
 ```
 
 ## Acknowledgements

@@ -1,10 +1,10 @@
-# candle-example-minimum-silero-vad
+# silero-vad-realtime-minimum
 
 ## Getting started
 
 ```
 git clone https://github.com/proj-airi/candle-examples.git
-cd apps/candle-example-minimum-silero-vad
+cd apps/silero-vad-realtime-minimum
 ```
 
 ## Build
@@ -17,13 +17,13 @@ cargo clean
 ### NVIDIA CUDA
 
 ```
-cargo build --package candle-example-minimum-silero-vad
+cargo build --package silero-vad-realtime-minimum
 ```
 
 ### macOS
 
 ```
-cargo build --package candle-example-minimum-silero-vad
+cargo build --package silero-vad-realtime-minimum
 ```
 
 ## Acknowledgements

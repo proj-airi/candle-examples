@@ -12,8 +12,9 @@ publish = false
 [workspace]
 resolver = "3"
 members = [
-    "apps/candle-example-whisper-mic",
-    "apps/candle-example-minimum-silero-vad",
+    "apps/silero-vad-realtime",
+    "apps/silero-vad-realtime-minimum",
+    "apps/whisper-realtime",
 ]
 
 [profile.dev]
