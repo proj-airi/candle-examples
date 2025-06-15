@@ -4,7 +4,29 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'silero-vad'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=silero-vad",
+                    "--package=silero-vad"
+                ],
+                "filter": {
+                    "name": "silero-vad",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--sample-rate",
+                "16000",
+                "--file",
+                "recording_16k.raw"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
         {
             "type": "lldb",
             "request": "launch",

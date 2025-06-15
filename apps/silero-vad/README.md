@@ -26,6 +26,20 @@ cargo build --package silero-vad
 cargo build --package silero-vad
 ```
 
+## Run
+
+```shell
+rec -t raw -r 48000 -b 16 -c 1 -e signed-integer recording.raw trim 0 5
+```
+
+```shell
+sox -t raw -r 48000 -b 16 -c 1 -e signed-integer recording.raw -t raw -r 16000 -b 16 -c 1 -e signed-integer recording_16k.raw
+```
+
+```shell
+cargo run --package silero-vad -- --file recording_16k.raw
+```
+
 ## Acknowledgements
 
 - [candle/candle-examples/examples/silero-vad](https://github.com/huggingface/candle/tree/main/candle-examples/examples/silero-vad)
