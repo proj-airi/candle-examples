@@ -31,12 +31,16 @@ jobs:
       # Failed to run custom build command · Issue #183 · Spotifyd/spotifyd
       # https://github.com/Spotifyd/spotifyd/issues/183#issuecomment-476384541
       - run: |
-          sudo apt-get install -y \
+          sudo apt install -y \
             libasound2-dev \
             portaudio19-dev \
             build-essential \
             libpulse-dev \
             libdbus-1-dev
+
+      - run: |
+          sudo apt install -y \
+            protobuf-compiler
 
       - name: Rustfmt Check
         uses: actions-rust-lang/rustfmt@v1
@@ -58,12 +62,16 @@ jobs:
       # Failed to run custom build command · Issue #183 · Spotifyd/spotifyd
       # https://github.com/Spotifyd/spotifyd/issues/183#issuecomment-476384541
       - run: |
-          sudo apt-get install -y \
+          sudo apt install -y \
             libasound2-dev \
             portaudio19-dev \
             build-essential \
             libpulse-dev \
             libdbus-1-dev
+
+      - run: |
+          sudo apt install -y \
+            protobuf-compiler
 
       - name: Lint
         run: cargo clippy -- -W clippy::pedantic -W clippy::nursery -A clippy::missing-errors-doc -A clippy::module_name_repetitions
@@ -84,12 +92,16 @@ jobs:
       # Failed to run custom build command · Issue #183 · Spotifyd/spotifyd
       # https://github.com/Spotifyd/spotifyd/issues/183#issuecomment-476384541
       - run: |
-          sudo apt-get install -y \
+          sudo apt install -y \
             libasound2-dev \
             portaudio19-dev \
             build-essential \
             libpulse-dev \
             libdbus-1-dev
+
+      - run: |
+          sudo apt install -y \
+            protobuf-compiler
 
       - name: Check
         run: cargo check --all
