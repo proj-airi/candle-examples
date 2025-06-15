@@ -200,12 +200,12 @@ impl SpeechStateManager {
       // Just crossed above threshold
       self.above_threshold_since = Some(now);
       self.below_threshold_since = None; // Reset below counter
-      println!("🔊 Crossed above threshold at {:.3}", speech_prob);
+      println!("🔊 Crossed above threshold at {speech_prob:.3}");
     } else if !above_threshold && self.below_threshold_since.is_none() {
       // Just crossed below threshold
       self.below_threshold_since = Some(now);
       self.above_threshold_since = None; // Reset above counter
-      println!("🔉 Crossed below threshold at {:.3}", speech_prob);
+      println!("🔉 Crossed below threshold at {speech_prob:.3}");
     }
 
     let was_speaking = self.is_speaking;
@@ -241,7 +241,7 @@ impl SpeechStateManager {
     was_speaking != self.is_speaking
   }
 
-  fn is_speaking(&self) -> bool {
+  const fn is_speaking(&self) -> bool {
     self.is_speaking
   }
 
@@ -335,8 +335,8 @@ fn main() -> Result<()> {
 
     for chunk_idx in 0..full_chunks {
       let chunk_slice = &buffered_pcm[chunk_idx * 1024..(chunk_idx + 1) * 1024];
-      let resampled = resampler.process(&[chunk_slice], None)?;
-      audio_buffer.extend_from_slice(&resampled[0]);
+      let resampler = resampler.process(&[chunk_slice], None)?;
+      audio_buffer.extend_from_slice(&resampler[0]);
     }
 
     // Handle remainder (following Whisper pattern exactly)
