@@ -15,11 +15,14 @@ words:
   - logprob
   - melfilters
   - mmaped
+  - onnx
   - probs
   - Resampler
   - rngs
   - safetensors
   - Seedable
+  - serde
+  - silero
   - softmax
   - unsqueeze
 ignoreWords: []
