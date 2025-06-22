@@ -72,6 +72,7 @@ impl ProcessingStats {
   }
 }
 
+#[allow(clippy::cast_precision_loss)]
 pub async fn transcribe_audio(
   State(state): State<Arc<AppState>>,
   mut multipart: Multipart,
@@ -251,6 +252,7 @@ async fn convert_audio_to_pcm(audio_data: &[u8]) -> Result<Vec<f32>> {
 }
 
 // Process complete audio file and return full transcript
+#[allow(clippy::significant_drop_tightening)]
 async fn transcribe_audio_complete(
   state: Arc<AppState>,
   model_name: String, // Change to owned String
@@ -382,6 +384,7 @@ async fn create_transcription_stream(
     }
 
     // Create event with actual transcription or progress update
+    #[allow(clippy::option_if_let_else)]
     let event_data = if let Some(transcript) = whisper_result {
       #[allow(clippy::cast_precision_loss)]
       StreamChunk { text: transcript, timestamp: Some(processed as f64 / f64::from(sample_rate)) }
