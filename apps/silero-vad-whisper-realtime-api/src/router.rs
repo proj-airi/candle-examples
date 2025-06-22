@@ -67,7 +67,7 @@ impl ProcessingStats {
     println!("  🎵 Audio length: {:.2}s", self.audio_length_seconds);
     if self.audio_length_seconds > 0.0 {
       let real_time_factor = self.total_duration.as_secs_f64() / self.audio_length_seconds as f64;
-      println!("  ⚡ Real-time factor: {:.2}x", real_time_factor);
+      println!("  ⚡ Real-time factor: {real_time_factor:.2}x");
     }
   }
 }
@@ -87,7 +87,7 @@ pub async fn transcribe_audio(
         StatusCode::BAD_REQUEST,
         Json(ErrorResponse {
           error: ErrorDetail {
-            message:    format!("Failed to extract form data: {}", e),
+            message:    format!("Failed to extract form data: {e}"),
             error_type: "invalid_request_error".to_string(),
             param:      Some("form".to_string()),
             code:       None,
@@ -97,7 +97,7 @@ pub async fn transcribe_audio(
     },
   };
 
-  println!("Request params: {:?}", params);
+  println!("Request params: {params:?}");
 
   // Parse streaming parameter from form data
   let stream_enabled = params
@@ -107,11 +107,10 @@ pub async fn transcribe_audio(
 
   // Get model name from parameters and clone it to make it owned
   let model_name = params
-    .get("model")
-    .map(|s| s.clone()) // Clone to make it owned
+    .get("model").cloned() // Clone to make it owned
     .unwrap_or_else(|| "tiny".to_string()); // Use tiny as default
 
-  println!("Using model: {}, streaming: {}", model_name, stream_enabled);
+  println!("Using model: {model_name}, streaming: {stream_enabled}");
 
   // Convert audio to PCM format with timing
   let conversion_start = Instant::now();
@@ -122,7 +121,7 @@ pub async fn transcribe_audio(
         StatusCode::BAD_REQUEST,
         Json(ErrorResponse {
           error: ErrorDetail {
-            message:    format!("Failed to process audio file: {}", e),
+            message:    format!("Failed to process audio file: {e}"),
             error_type: "invalid_request_error".to_string(),
             param:      Some("file".to_string()),
             code:       None,
@@ -156,7 +155,7 @@ pub async fn transcribe_audio(
           StatusCode::INTERNAL_SERVER_ERROR,
           Json(ErrorResponse {
             error: ErrorDetail {
-              message:    format!("Transcription failed: {}", e),
+              message:    format!("Transcription failed: {e}"),
               error_type: "server_error".to_string(),
               param:      None,
               code:       None,
@@ -321,7 +320,7 @@ async fn create_transcription_stream(
         StatusCode::BAD_REQUEST,
         Json(ErrorResponse {
           error: ErrorDetail {
-            message:    format!("Failed to load model '{}': {}", model_name, e),
+            message:    format!("Failed to load model '{model_name}': {e}"),
             error_type: "invalid_request_error".to_string(),
             param:      Some("model".to_string()),
             code:       None,

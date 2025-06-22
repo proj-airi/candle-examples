@@ -74,14 +74,14 @@ impl AppState {
     {
       let models = self.whisper_models.read().await;
       if let Some(processor) = models.get(model_name) {
-        println!("🔄 Using cached Whisper model: {}", model_name);
+        println!("🔄 Using cached Whisper model: {model_name}");
         return Ok(processor.clone());
       }
     }
 
     // If not in cache, create new model with timing
     let loading_start = std::time::Instant::now();
-    println!("🧠 Loading new Whisper model: {}", model_name);
+    println!("🧠 Loading new Whisper model: {model_name}");
 
     let whisper_model = Self::parse_model_name(model_name)?;
     let processor = Arc::new(Mutex::new(WhisperProcessor::new(whisper_model, self.device.clone())?));
