@@ -6,17 +6,24 @@ words:
   - AIRI
   - byteorder
   - clippy
+  - coreml
   - cuda
   - distil
   - dtolnay
   - DTYPE
+  - espeak
   - gguf
+  - indicatif
+  - kokoro
   - logits
   - logprob
   - melfilters
   - mmaped
+  - ndarray
   - onnx
+  - phonemizer
   - probs
+  - reqwest
   - Resampler
   - rngs
   - safetensors

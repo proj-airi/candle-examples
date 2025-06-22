@@ -7,7 +7,31 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'orpheus-tts'",
+            "name": "Debug example 'kokoro-tts'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=kokoro-tts",
+                    "--package=kokoro-tts"
+                ],
+                "filter": {
+                    "name": "kokoro-tts",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+              "text",
+              "--style",
+              "zf_xiaoxiao",
+              "--text",
+              "你好"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug example 'orpheus-tts'",
             "cargo": {
                 "args": [
                     "build",
@@ -47,7 +71,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'silero-vad-realtime'",
+            "name": "Debug example 'silero-vad-realtime'",
             "cargo": {
                 "args": [
                     "build",
@@ -65,7 +89,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'silero-vad-realtime-minimum'",
+            "name": "Debug example 'silero-vad-realtime-minimum'",
             "cargo": {
                 "args": [
                     "build",
@@ -83,7 +107,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'silero-vad-whisper-realtime'",
+            "name": "Debug example 'silero-vad-whisper-realtime'",
             "cargo": {
                 "args": [
                     "build",
@@ -101,7 +125,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'whisper-realtime'",
+            "name": "Debug example 'whisper-realtime'",
             "cargo": {
                 "args": [
                     "build",

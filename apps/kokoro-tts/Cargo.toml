@@ -1,0 +1,27 @@
+[package]
+name = "kokoro-tts"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+espeak-rs = "0.1.9"
+hound = "3.5.1"
+indicatif = "0.17.11"
+ndarray = "0.16.1"
+lazy_static = "1.5.0"
+regex = "1.11.1"
+reqwest = { version = "0.12.19" }
+serde_json = "1.0.140"
+tokio = { version = "1.45.1", features = ["fs", "io-std", "io-util", "rt-multi-thread"] }
+ndarray-npy = "0.9.1"
+mp3lame-encoder = "0.2.1"
+
+# Base ONNX Runtime configuration
+ort = { version = "2.0.0-rc.10", default-features = true }
+clap = { version = "4.5.40", features = ["derive"] }
+
+[features]
+default = []
+cuda = ["ort/cuda"]
+metal = ["ort/coreml"]

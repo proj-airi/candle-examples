@@ -12,6 +12,7 @@ publish = false
 [workspace]
 resolver = "3"
 members = [
+    "apps/kokoro-tts",
     "apps/orpheus-tts",
     "apps/silero-vad",
     "apps/silero-vad-realtime",
