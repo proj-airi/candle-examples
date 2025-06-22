@@ -19,6 +19,7 @@
 - [Development](#development)
   - [NVIDIA CUDA](#nvidia-cuda)
   - [macOS](#macos)
+- [Other examples about AI / Model inference from Project AIRI](#other-examples-about-ai--model-inference-from-project-airi)
 - [Other side projects born from Project AIRI](#other-side-projects-born-from-project-airi)
 
 ## Examples
@@ -61,6 +62,12 @@ cargo build --features cuda
 ```
 cargo build --features metal
 ```
+
+## Other examples about AI / Model inference from Project AIRI
+
+- [WebAI Examples](https://github.com/proj-airi/webai-examples): WebGPU, and use of AI models inside Web Browsers (you could think of it as a type-safe and UI improved version of [🤗 Transformers.js' example repository](https://github.com/huggingface/transformers.js-examples))
+- [WebAI Example Realtime Voice Chat](https://github.com/proj-airi/webai-example-realtime-voice-chat): 🎤💬 Full example of implementing ChatGPT's realtime voice from scratch with VAD + STT + LLM + TTS technology stack within almost one file!
+- [Burn Examples](https://github.com/proj-airi/burn-examples): Examples of using [Burn.dev](https://burn.dev) for inference AI models in Rust, you could think of it as an alternative and more advanced library than [🤗 candle Examples (this repository)].
 
 ## Other side projects born from Project AIRI
 
