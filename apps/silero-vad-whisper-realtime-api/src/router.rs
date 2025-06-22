@@ -1,7 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Instant};
 
 use crate::AppState;
-use crate::api::{ErrorDetail, ErrorResponse, StreamChunk, TranscriptionRequest, TranscriptionResponse, default_model, default_response_format, default_temperature};
+use crate::api::{ErrorDetail, ErrorResponse, StreamChunk, TranscriptionResponse};
 
 use crate::audio_manager::AudioBuffer;
 use anyhow::Result;
@@ -27,11 +27,52 @@ use symphonia::{
   default::get_probe,
 };
 
+// Performance statistics struct
+#[derive(Debug)]
+struct ProcessingStats {
+  total_duration: std::time::Duration,
+  audio_conversion_duration: std::time::Duration,
+  model_loading_duration: std::time::Duration,
+  vad_processing_duration: std::time::Duration,
+  whisper_transcription_duration: std::time::Duration,
+  audio_length_seconds: f32,
+}
+
+impl ProcessingStats {
+  fn new() -> Self {
+    Self {
+      total_duration: std::time::Duration::ZERO,
+      audio_conversion_duration: std::time::Duration::ZERO,
+      model_loading_duration: std::time::Duration::ZERO,
+      vad_processing_duration: std::time::Duration::ZERO,
+      whisper_transcription_duration: std::time::Duration::ZERO,
+      audio_length_seconds: 0.0,
+    }
+  }
+
+  fn print_summary(&self) {
+    println!("📊 Processing Statistics:");
+    println!("  📁 Audio conversion: {:.2}ms", self.audio_conversion_duration.as_secs_f64() * 1000.0);
+    println!("  🧠 Model loading: {:.2}ms", self.model_loading_duration.as_secs_f64() * 1000.0);
+    println!("  🎯 VAD processing: {:.2}ms", self.vad_processing_duration.as_secs_f64() * 1000.0);
+    println!("  🗣️  Whisper transcription: {:.2}ms", self.whisper_transcription_duration.as_secs_f64() * 1000.0);
+    println!("  ⏱️  Total processing: {:.2}ms", self.total_duration.as_secs_f64() * 1000.0);
+    println!("  🎵 Audio length: {:.2}s", self.audio_length_seconds);
+    if self.audio_length_seconds > 0.0 {
+      let real_time_factor = self.total_duration.as_secs_f64() / self.audio_length_seconds as f64;
+      println!("  ⚡ Real-time factor: {:.2}x", real_time_factor);
+    }
+  }
+}
+
 // Main transcription endpoint - remove unused TranscriptionRequest construction
 pub async fn transcribe_audio(
   State(state): State<Arc<AppState>>,
   mut multipart: Multipart,
 ) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
+  let start_time = Instant::now();
+  let mut stats = ProcessingStats::new();
+
   // Extract both audio file and parameters from multipart form
   let (audio_data, params) = match extract_multipart_data(&mut multipart).await {
     Ok(data) => data,
@@ -66,7 +107,8 @@ pub async fn transcribe_audio(
 
   println!("Using model: {}, streaming: {}", model_name, stream_enabled);
 
-  // Convert audio to PCM format
+  // Convert audio to PCM format with timing
+  let conversion_start = Instant::now();
   let pcm_data = match convert_audio_to_pcm(&audio_data).await {
     Ok(data) => data,
     Err(e) => {
@@ -83,29 +125,39 @@ pub async fn transcribe_audio(
       ));
     },
   };
+  stats.audio_conversion_duration = conversion_start.elapsed();
+  stats.audio_length_seconds = pcm_data.len() as f32 / 16000.0; // Assuming 16kHz sample rate
 
-  println!("Audio data length: {} samples", pcm_data.len());
+  println!("Audio data length: {} samples ({:.2}s)", pcm_data.len(), stats.audio_length_seconds);
 
   if stream_enabled {
     // Return streaming response
-    let stream = create_transcription_stream(state, model_name, pcm_data).await?;
+    let stream = create_transcription_stream(state, model_name, pcm_data, stats).await?;
     let sse = Sse::new(stream).keep_alive(KeepAlive::default());
     Ok(sse.into_response())
   } else {
     // Return single response
-    match transcribe_audio_complete(state, model_name, pcm_data).await {
-      Ok(transcript) => Ok(Json(TranscriptionResponse { text: transcript }).into_response()),
-      Err(e) => Err((
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ErrorResponse {
-          error: ErrorDetail {
-            message: format!("Transcription failed: {}", e),
-            error_type: "server_error".to_string(),
-            param: None,
-            code: None,
-          },
-        }),
-      )),
+    match transcribe_audio_complete(state, model_name, pcm_data, &mut stats).await {
+      Ok(transcript) => {
+        stats.total_duration = start_time.elapsed();
+        stats.print_summary();
+        Ok(Json(TranscriptionResponse { text: transcript }).into_response())
+      },
+      Err(e) => {
+        stats.total_duration = start_time.elapsed();
+        stats.print_summary();
+        Err((
+          StatusCode::INTERNAL_SERVER_ERROR,
+          Json(ErrorResponse {
+            error: ErrorDetail {
+              message: format!("Transcription failed: {}", e),
+              error_type: "server_error".to_string(),
+              param: None,
+              code: None,
+            },
+          }),
+        ))
+      },
     }
   }
 }
@@ -196,11 +248,14 @@ pub async fn transcribe_audio_complete(
   state: Arc<AppState>,
   model_name: String, // Change to owned String
   audio_data: Vec<f32>,
+  stats: &mut ProcessingStats,
 ) -> Result<String> {
   let sample_rate = 16000;
 
-  // Get the appropriate Whisper processor for this model
+  // Get the appropriate Whisper processor for this model with timing
+  let model_loading_start = Instant::now();
   let whisper_processor = state.get_whisper_processor(&model_name).await?;
+  stats.model_loading_duration = model_loading_start.elapsed();
 
   // Process audio through VAD and Whisper
   let mut vad = state.vad.lock().await;
@@ -209,6 +264,9 @@ pub async fn transcribe_audio_complete(
 
   let mut transcripts = Vec::new();
   let mut frame_buffer = Vec::<f32>::new();
+
+  let vad_start = Instant::now();
+  let mut whisper_total_time = std::time::Duration::ZERO;
 
   // Process in chunks
   for chunk in audio_data.chunks(1024) {
@@ -221,13 +279,20 @@ pub async fn transcribe_audio_complete(
       let is_speech = vad.is_speech(speech_prob);
 
       if let Some(complete_audio) = audio_buffer.add_chunk(&frame, is_speech) {
+        // Measure Whisper transcription time
+        let whisper_start = Instant::now();
         let transcript = whisper.transcribe(&complete_audio)?;
+        whisper_total_time += whisper_start.elapsed();
+
         if !transcript.trim().is_empty() && !transcript.contains("[BLANK_AUDIO]") {
           transcripts.push(transcript.trim().to_string());
         }
       }
     }
   }
+
+  stats.vad_processing_duration = vad_start.elapsed() - whisper_total_time;
+  stats.whisper_transcription_duration = whisper_total_time;
 
   Ok(transcripts.join(" "))
 }
@@ -237,8 +302,12 @@ pub async fn create_transcription_stream(
   state: Arc<AppState>,
   model_name: String, // Change to owned String
   audio_data: Vec<f32>,
+  mut stats: ProcessingStats,
 ) -> Result<impl Stream<Item = Result<Event, anyhow::Error>>, (StatusCode, Json<ErrorResponse>)> {
-  // Get the appropriate Whisper processor for this model
+  let stream_start = Instant::now();
+
+  // Get the appropriate Whisper processor for this model with timing
+  let model_loading_start = Instant::now();
   let whisper_processor = match state.get_whisper_processor(&model_name).await {
     Ok(processor) => processor,
     Err(e) => {
@@ -255,11 +324,15 @@ pub async fn create_transcription_stream(
       ));
     },
   };
+  stats.model_loading_duration = model_loading_start.elapsed();
 
   let sample_rate = 16000;
 
-  Ok(stream::unfold((state, whisper_processor, audio_data, 0, AudioBuffer::new(10000, 100, 500, sample_rate)), move |(state, whisper_processor, audio_data, mut processed, mut audio_buffer)| async move {
+  Ok(stream::unfold((state, whisper_processor, audio_data, 0, AudioBuffer::new(10000, 100, 500, sample_rate), stats, stream_start), move |(state, whisper_processor, audio_data, mut processed, mut audio_buffer, mut stats, stream_start)| async move {
     if processed >= audio_data.len() {
+      // Print final statistics for streaming
+      stats.total_duration = stream_start.elapsed();
+      stats.print_summary();
       return None;
     }
 
@@ -272,6 +345,7 @@ pub async fn create_transcription_stream(
     let mut whisper_result = None;
 
     // Process through VAD
+    let vad_chunk_start = Instant::now();
     let mut vad = state.vad.lock().await;
     if let Ok(speech_prob) = vad.process_chunk(chunk) {
       let is_speech = vad.is_speech(speech_prob);
@@ -280,15 +354,24 @@ pub async fn create_transcription_stream(
       if let Some(complete_audio) = audio_buffer.add_chunk(chunk, is_speech) {
         // Release VAD lock before acquiring Whisper lock
         drop(vad);
+        let vad_chunk_time = vad_chunk_start.elapsed();
+        stats.vad_processing_duration += vad_chunk_time;
 
         // Process complete audio through Whisper
+        let whisper_chunk_start = Instant::now();
         let mut whisper = whisper_processor.lock().await;
         if let Ok(transcript) = whisper.transcribe(&complete_audio) {
+          let whisper_chunk_time = whisper_chunk_start.elapsed();
+          stats.whisper_transcription_duration += whisper_chunk_time;
+
           if !transcript.trim().is_empty() && !transcript.contains("[BLANK_AUDIO]") {
             whisper_result = Some(transcript.trim().to_string());
+            println!("🎯 Chunk transcribed in {:.2}ms: \"{}\"", whisper_chunk_time.as_secs_f64() * 1000.0, transcript.trim());
           }
         }
       }
+    } else {
+      stats.vad_processing_duration += vad_chunk_start.elapsed();
     }
 
     // Create event with actual transcription or progress update
@@ -303,6 +386,6 @@ pub async fn create_transcription_stream(
 
     let event = Event::default().json_data(event_data).unwrap();
 
-    Some((Ok(event), (state.clone(), whisper_processor.clone(), audio_data, processed, audio_buffer)))
+    Some((Ok(event), (state.clone(), whisper_processor.clone(), audio_data, processed, audio_buffer, stats, stream_start)))
   }))
 }

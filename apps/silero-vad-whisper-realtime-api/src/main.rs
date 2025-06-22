@@ -78,10 +78,14 @@ impl AppState {
       }
     }
 
-    // If not in cache, create new model
+    // If not in cache, create new model with timing
+    let loading_start = std::time::Instant::now();
     println!("🧠 Loading new Whisper model: {}", model_name);
+
     let whisper_model = Self::parse_model_name(model_name)?;
     let processor = Arc::new(Mutex::new(WhisperProcessor::new(whisper_model, self.device.clone())?));
+
+    let loading_time = loading_start.elapsed();
 
     // Add to cache
     {
@@ -89,7 +93,7 @@ impl AppState {
       models.insert(model_name.to_string(), processor.clone());
     }
 
-    println!("✅ Whisper model loaded and cached: {}", model_name);
+    println!("✅ Whisper model loaded and cached: {} ({:.2}ms)", model_name, loading_time.as_secs_f64() * 1000.0);
     Ok(processor)
   }
 
