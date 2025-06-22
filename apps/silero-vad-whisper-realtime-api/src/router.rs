@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, time::Instant};
+use std::{collections::HashMap, sync::Arc, time::{Duration, Instant}};
 
 use anyhow::Result;
 use axum::{
@@ -33,22 +33,22 @@ use crate::{
 // Performance statistics struct
 #[derive(Debug)]
 struct ProcessingStats {
-  total_duration:                 std::time::Duration,
-  audio_conversion_duration:      std::time::Duration,
-  model_loading_duration:         std::time::Duration,
-  vad_processing_duration:        std::time::Duration,
-  whisper_transcription_duration: std::time::Duration,
+  total_duration:                 Duration,
+  audio_conversion_duration:      Duration,
+  model_loading_duration:         Duration,
+  vad_processing_duration:        Duration,
+  whisper_transcription_duration: Duration,
   audio_length_seconds:           f32,
 }
 
 impl ProcessingStats {
   fn new() -> Self {
     Self {
-      total_duration:                 std::time::Duration::ZERO,
-      audio_conversion_duration:      std::time::Duration::ZERO,
-      model_loading_duration:         std::time::Duration::ZERO,
-      vad_processing_duration:        std::time::Duration::ZERO,
-      whisper_transcription_duration: std::time::Duration::ZERO,
+      total_duration:                 Duration::ZERO,
+      audio_conversion_duration:      Duration::ZERO,
+      model_loading_duration:         Duration::ZERO,
+      vad_processing_duration:        Duration::ZERO,
+      whisper_transcription_duration: Duration::ZERO,
       audio_length_seconds:           0.0,
     }
   }
@@ -268,7 +268,7 @@ async fn transcribe_audio_complete(
   let mut frame_buffer = Vec::<f32>::new();
 
   let vad_start = Instant::now();
-  let mut whisper_total_time = std::time::Duration::ZERO;
+  let mut whisper_total_time = Duration::ZERO;
 
   // Process in chunks
   for chunk in audio_data.chunks(1024) {
