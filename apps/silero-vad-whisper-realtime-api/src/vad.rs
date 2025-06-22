@@ -5,14 +5,14 @@ use candle_core::{DType, Device, Tensor};
 use candle_onnx::simple_eval;
 
 pub struct VADProcessor {
-  model: candle_onnx::onnx::ModelProto,
-  frame_size: usize,
+  model:        candle_onnx::onnx::ModelProto,
+  frame_size:   usize,
   context_size: usize,
-  sample_rate: Tensor,
-  state: Tensor,
-  context: Tensor,
-  device: Device,
-  threshold: f32,
+  sample_rate:  Tensor,
+  state:        Tensor,
+  context:      Tensor,
+  device:       Device,
+  threshold:    f32,
 }
 
 impl VADProcessor {

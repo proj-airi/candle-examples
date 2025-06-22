@@ -2,7 +2,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Result;
 use axum::{
-  Json, Router,
+  Json,
+  Router,
   response::IntoResponse,
   routing::{get, post},
 };
@@ -25,8 +26,8 @@ mod whisper;
 
 // Application state with dynamic model loading
 struct AppState {
-  vad: Arc<Mutex<VADProcessor>>,
-  device: Device,
+  vad:            Arc<Mutex<VADProcessor>>,
+  device:         Device,
   // Use RwLock for read-heavy workload (checking cache)
   whisper_models: Arc<RwLock<HashMap<String, Arc<Mutex<WhisperProcessor>>>>>,
 }
