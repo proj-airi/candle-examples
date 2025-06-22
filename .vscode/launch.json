@@ -7,6 +7,23 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Debug executable 'orpheus-tts'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=orpheus-tts",
+                    "--package=orpheus-tts"
+                ],
+                "filter": {
+                    "name": "orpheus-tts",
+                    "kind": "bin"
+                }
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug example 'silero-vad'",
             "cargo": {
                 "args": [
@@ -57,6 +74,24 @@
                 ],
                 "filter": {
                     "name": "silero-vad-realtime-minimum",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'silero-vad-whisper-realtime'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=silero-vad-whisper-realtime",
+                    "--package=silero-vad-whisper-realtime"
+                ],
+                "filter": {
+                    "name": "silero-vad-whisper-realtime",
                     "kind": "bin"
                 }
             },

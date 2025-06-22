@@ -23,6 +23,7 @@ words:
   - Seedable
   - serde
   - silero
+  - snac
   - softmax
   - unsqueeze
 ignoreWords: []
