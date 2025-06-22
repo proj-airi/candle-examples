@@ -1,13 +1,13 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::AppState;
-use crate::api::{default_model, default_response_format, default_temperature, ErrorDetail, ErrorResponse, StreamChunk, TranscriptionRequest, TranscriptionResponse};
+use crate::api::{ErrorDetail, ErrorResponse, StreamChunk, TranscriptionRequest, TranscriptionResponse, default_model, default_response_format, default_temperature};
 
 use crate::audio_manager::AudioBuffer;
 use anyhow::Result;
 use axum::{
   Json,
-  extract::{Multipart, Query, State},
+  extract::{Multipart, State},
   http::StatusCode,
   response::{
     IntoResponse, Response,
@@ -30,26 +30,19 @@ use symphonia::{
 // Main transcription endpoint
 pub async fn transcribe_audio(
   State(state): State<Arc<AppState>>,
-  Query(params): Query<HashMap<String, String>>,
   mut multipart: Multipart,
 ) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
-  // Parse query parameters for streaming
-  let stream_enabled = params
-    .get("stream")
-    .map(|s| s.parse::<bool>().unwrap_or(false))
-    .unwrap_or(false);
-
-  // Extract audio file from multipart form
-  let audio_data = match extract_audio_from_multipart(&mut multipart).await {
+  // Extract both audio file and parameters from multipart form
+  let (audio_data, params) = match extract_multipart_data(&mut multipart).await {
     Ok(data) => data,
     Err(e) => {
       return Err((
         StatusCode::BAD_REQUEST,
         Json(ErrorResponse {
           error: ErrorDetail {
-            message: format!("Failed to extract audio file: {}", e),
+            message: format!("Failed to extract form data: {}", e),
             error_type: "invalid_request_error".to_string(),
-            param: Some("file".to_string()),
+            param: Some("form".to_string()),
             code: None,
           },
         }),
@@ -57,7 +50,15 @@ pub async fn transcribe_audio(
     },
   };
 
-  // Parse request parameters
+  println!("params: {:?}", params);
+
+  // Parse query parameters for streaming
+  let stream_enabled = params
+    .get("stream")
+    .map(|s| s.parse::<bool>().unwrap_or(false))
+    .unwrap_or(false);
+
+  // Parse request parameters from form data
   let request = TranscriptionRequest {
     model: params
       .get("model")
@@ -123,17 +124,28 @@ pub async fn transcribe_audio(
   }
 }
 
-// Extract audio file from multipart form data
-async fn extract_audio_from_multipart(multipart: &mut Multipart) -> Result<Vec<u8>> {
+// Extract both audio file and parameters from multipart form data
+async fn extract_multipart_data(multipart: &mut Multipart) -> Result<(Vec<u8>, HashMap<String, String>)> {
+  let mut audio_data = None;
+  let mut params = HashMap::new();
+
   while let Some(field) = multipart.next_field().await? {
     if let Some(name) = field.name() {
+      let name = name.to_string(); // Clone the name first to avoid borrow conflict
       if name == "file" {
+        // Extract audio file
         let data = field.bytes().await?;
-        return Ok(data.to_vec());
+        audio_data = Some(data.to_vec());
+      } else {
+        // Extract form parameters
+        let value = field.text().await?;
+        params.insert(name, value);
       }
     }
   }
-  anyhow::bail!("No file field found in multipart data")
+
+  let audio = audio_data.ok_or_else(|| anyhow::anyhow!("No file field found in multipart data"))?;
+  Ok((audio, params))
 }
 
 // Convert various audio formats to PCM
