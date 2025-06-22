@@ -130,7 +130,7 @@ async fn main() -> Result<()> {
 
   // Build application routes
   let app = Router::new()
-    .route("/", get(health_check))
+    .route("/healthz", get(health_check))
     .route("/v1/audio/transcriptions", post(transcribe_audio))
     .layer(
       ServiceBuilder::new()
@@ -140,10 +140,11 @@ async fn main() -> Result<()> {
     .with_state(Arc::new(state));
 
   // Start server
+  // TODO: use `PORT` as port from environment variables
   let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
   println!("🚀 ASR API server running on http://0.0.0.0:3000");
   println!("📝 Available endpoints:");
-  println!("  GET  /                           - Health check");
+  println!("  GET  /healthz                    - Health check");
   println!("  POST /v1/audio/transcriptions    - Audio transcription (OpenAI compatible)");
 
   axum::serve(listener, app).await?;
