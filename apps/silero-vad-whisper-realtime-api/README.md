@@ -1,101 +1,94 @@
 # ASR API - OpenAI Compatible Audio Transcription Service
 
-🎤 一个兼容OpenAI格式的语音转录API服务，支持实时流式响应(SSE)，集成了Silero VAD和Whisper模型。
+🎤 An OpenAI-compatible speech transcription API service with real-time streaming response (SSE), integrated with Silero VAD and Whisper models.
 
-## ✨ 功能特性
+## ✨ Features
 
-- 🔄 **兼容OpenAI API**: 完全兼容OpenAI `/v1/audio/transcriptions` 端点格式
-- 📡 **Server-Sent Events (SSE)**: 支持流式响应，实时获取转录结果
-- 🎯 **语音活动检测**: 集成Silero VAD，智能检测语音片段
-- 🧠 **Whisper转录**: 使用Candle框架实现的高效Whisper模型
-- 🚀 **高性能**: 支持GPU加速(CUDA/Metal)
-- 🌐 **现代Web界面**: 包含完整的测试页面
+- 🔄 **OpenAI API Compatible**: Full compatibility with OpenAI `/v1/audio/transcriptions` endpoint format
+- 📡 **Server-Sent Events (SSE)**: Supports streaming responses for real-time transcription results
+- 🎯 **Voice Activity Detection**: Integrated with Silero VAD for intelligent speech segment detection
+- 🧠 **Whisper Transcription**: High-performance Whisper model implementation using Candle framework
+- 🚀 **High Performance**: Supports GPU acceleration (CUDA/Metal)
+- 🌐 **Modern Web Interface**: Includes complete testing page
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 启动服务器
+### 1. Start the Server
 
 ```bash
-# 进入项目目录
+# Navigate to project directory
 cd apps/asr-api
 
-# 安装依赖并启动
+# Install dependencies and start
 cargo run --release
 ```
 
-服务器将在 `http://localhost:3000` 启动。
+The server will start at `http://localhost:3000`.
 
-### 2. 测试API
-
-打开浏览器访问测试页面：
-```
-http://localhost:3000/test.html
-```
-
-或者使用curl命令：
+### 2. Test API
 
 ```bash
-# 基础转录
+# Basic transcription
 curl -X POST http://localhost:3000/v1/audio/transcriptions \
   -F "file=@your_audio.wav" \
   -F "model=whisper-1"
 
-# 流式转录
+# Streaming transcription
 curl -X POST "http://localhost:3000/v1/audio/transcriptions?stream=true" \
   -F "file=@your_audio.wav" \
   -F "model=whisper-1" \
   --no-buffer
 ```
 
-## 📋 API文档
+## 📋 API Documentation
 
 ### POST `/v1/audio/transcriptions`
 
-转录音频文件为文本。
+Transcribe audio file to text.
 
-#### 请求参数
+#### Request Parameters
 
-| 参数 | 类型 | 必需 | 描述 |
-|------|------|------|------|
-| `file` | File | ✅ | 要转录的音频文件 |
-| `model` | String | ❌ | 模型名称 (默认: "whisper-1") |
-| `language` | String | ❌ | 音频语言 |
-| `prompt` | String | ❌ | 提示文本 |
-| `response_format` | String | ❌ | 响应格式 (默认: "json") |
-| `temperature` | Float | ❌ | 采样温度 (默认: 0.0) |
-| `stream` | Boolean | ❌ | 启用流式响应 (Query参数) |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `file` | File | ✅ | Audio file to transcribe |
+| `model` | String | ❌ | Model name (default: "whisper-1") |
+| `language` | String | ❌ | Audio language |
+| `prompt` | String | ❌ | Prompt text |
+| `response_format` | String | ❌ | Response format (default: "json") |
+| `temperature` | Float | ❌ | Sampling temperature (default: 0.0) |
+| `stream` | Boolean | ❌ | Enable streaming response (Query parameter) |
 
-#### 支持的音频格式
+#### Supported Audio Formats
 
 - WAV
 - MP3
 - FLAC
 - M4A
-- 以及Symphonia支持的其他格式
+- And other formats supported by Symphonia
 
-#### 响应格式
+#### Response Format
 
-**标准响应 (JSON)**:
+**Standard Response (JSON)**:
 ```json
 {
-  "text": "转录的文本内容"
+  "text": "Transcribed text content"
 }
 ```
 
-**流式响应 (SSE)**:
+**Streaming Response (SSE)**:
 ```
 data: {"text": "Processing audio chunk 1 of 4...", "timestamp": 0.5}
 
 data: {"text": "Processing audio chunk 2 of 4...", "timestamp": 1.0}
 
-data: {"text": "转录完成的文本", "timestamp": 2.5}
+data: {"text": "Completed transcription text", "timestamp": 2.5}
 ```
 
-**错误响应**:
+**Error Response**:
 ```json
 {
   "error": {
-    "message": "错误描述",
+    "message": "Error description",
     "type": "invalid_request_error",
     "param": "file",
     "code": null
@@ -103,123 +96,123 @@ data: {"text": "转录完成的文本", "timestamp": 2.5}
 }
 ```
 
-## 🛠️ 开发指南
+## 🛠️ Development Guide
 
-### 项目结构
+### Project Structure
 
 ```
 apps/asr-api/
 ├── src/
-│   ├── main.rs           # 主服务器文件
-│   ├── vad.rs           # VAD处理器
-│   ├── whisper.rs       # Whisper处理器
-│   └── audio_manager.rs # 音频缓冲管理
-├── melfilters.bytes     # Mel滤波器数据
-├── melfilters128.bytes  # 128维Mel滤波器数据
-├── test.html           # 测试页面
-├── Cargo.toml          # 依赖配置
-└── README.md           # 文档
+│   ├── main.rs           # Main server file
+│   ├── vad.rs           # VAD processor
+│   ├── whisper.rs       # Whisper processor
+│   └── audio_manager.rs # Audio buffer management
+├── melfilters.bytes     # Mel filter data
+├── melfilters128.bytes  # 128-dim Mel filter data
+├── test.html           # Test page
+├── Cargo.toml          # Dependencies configuration
+└── README.md           # Documentation
 ```
 
-### 核心组件
+### Core Components
 
-1. **VAD处理器**: 使用Silero VAD模型检测语音活动
-2. **Whisper处理器**: 使用Candle实现的Whisper模型进行转录
-3. **音频管理器**: 处理音频缓冲和格式转换
-4. **Web服务器**: 基于Axum的高性能HTTP服务器
+1. **VAD Processor**: Uses Silero VAD model for voice activity detection
+2. **Whisper Processor**: Uses Candle-implemented Whisper model for transcription
+3. **Audio Manager**: Handles audio buffering and format conversion
+4. **Web Server**: High-performance HTTP server based on Axum
 
-### 自定义配置
+### Custom Configuration
 
-可以通过修改 `AppState::new()` 方法来调整以下参数：
+You can adjust the following parameters by modifying the `AppState::new()` method:
 
-- VAD阈值 (默认: 0.3)
-- Whisper模型 (默认: Tiny)
-- 设备选择 (自动选择GPU/CPU)
+- VAD threshold (default: 0.3)
+- Whisper model (default: Tiny)
+- Device selection (auto-select GPU/CPU)
 
-### 添加新功能
+### Adding New Features
 
-1. **支持更多音频格式**: 修改 `convert_audio_to_pcm` 函数
-2. **自定义VAD参数**: 在 `VADProcessor::new` 中调整参数
-3. **更大的Whisper模型**: 在 `WhisperProcessor::new` 中选择不同模型
+1. **Support more audio formats**: Modify `convert_audio_to_pcm` function
+2. **Custom VAD parameters**: Adjust parameters in `VADProcessor::new`
+3. **Larger Whisper models**: Select different models in `WhisperProcessor::new`
 
-## 🔧 高级配置
+## 🔧 Advanced Configuration
 
-### 环境变量
+### Environment Variables
 
 ```bash
-# 设置日志级别
+# Set log level
 export RUST_LOG=debug
 
-# 强制使用CPU
+# Force CPU usage
 export CANDLE_FORCE_CPU=1
 ```
 
-### GPU加速
+### GPU Acceleration
 
-#### CUDA支持
+#### CUDA Support
 ```bash
 cargo run --release --features cuda
 ```
 
-#### Metal支持 (macOS)
+#### Metal Support (macOS)
 ```bash
 cargo run --release --features metal
 ```
 
-## 📊 性能优化
+## 📊 Performance Optimization
 
-### 推荐配置
+### Recommended Configuration
 
-- **内存**: 最少8GB RAM
-- **GPU**: NVIDIA GTX 1060 6GB+ 或 Apple M1+
-- **存储**: SSD推荐，用于模型加载
+- **Memory**: Minimum 8GB RAM
+- **GPU**: NVIDIA GTX 1060 6GB+ or Apple M1+
+- **Storage**: SSD recommended for model loading
 
-### 批处理优化
+### Batch Processing Optimization
 
-对于大量文件处理，建议：
+For processing large numbers of files, consider:
 
-1. 使用更大的Whisper模型获得更好质量
-2. 启用GPU加速
-3. 调整VAD参数减少误检
+1. Use larger Whisper models for better quality
+2. Enable GPU acceleration
+3. Adjust VAD parameters to reduce false positives
 
-## 🚨 常见问题
+## 🚨 FAQ
 
-### Q: 转录准确率不高怎么办？
-A: 尝试以下方法：
-- 使用更大的Whisper模型 (medium/large)
-- 确保音频质量良好 (16kHz采样率)
-- 调整VAD阈值
-- 提供语言参数
+### Q: How to improve transcription accuracy?
+A: Try the following methods:
+- Use larger Whisper models (medium/large)
+- Ensure good audio quality (16kHz sampling rate)
+- Adjust VAD threshold
+- Provide language parameter
 
-### Q: 服务器启动慢？
-A: 首次启动需要下载模型文件，这是正常现象。模型会缓存到本地。
+### Q: Server starts slowly?
+A: First startup requires downloading model files, which is normal. Models are cached locally.
 
-### Q: 支持实时语音输入吗？
-A: 目前只支持文件上传，实时语音输入可以参考 `silero-vad-whisper-realtime` 项目。
+### Q: Does it support real-time voice input?
+A: Currently only supports file upload. For real-time voice input, refer to the `silero-vad-whisper-realtime` project.
 
-### Q: 如何批量处理文件？
-A: 可以编写脚本调用API，或者扩展当前代码支持批处理端点。
+### Q: How to batch process files?
+A: You can write scripts to call the API, or extend the current code to support batch processing endpoints.
 
-## 🤝 贡献指南
+## 🤝 Contributing
 
-欢迎提交Issue和Pull Request！
+Issues and Pull Requests are welcome!
 
-1. Fork项目
-2. 创建功能分支
-3. 提交改动
-4. 发起Pull Request
+1. Fork the project
+2. Create feature branch
+3. Commit changes
+4. Submit Pull Request
 
-## 📄 许可证
+## 📄 License
 
-本项目采用与父项目相同的许可证。
+This project uses the same license as the parent project.
 
-## 🙏 致谢
+## 🙏 Acknowledgments
 
-- [Candle](https://github.com/huggingface/candle) - 高性能ML框架
-- [Axum](https://github.com/tokio-rs/axum) - 现代Web框架
-- [OpenAI](https://openai.com/) - API设计参考
-- [Silero VAD](https://github.com/snakers4/silero-vad) - VAD模型
+- [Candle](https://github.com/huggingface/candle) - High-performance ML framework
+- [Axum](https://github.com/tokio-rs/axum) - Modern web framework
+- [OpenAI](https://openai.com/) - API design reference
+- [Silero VAD](https://github.com/snakers4/silero-vad) - VAD model
 
 ---
 
-🎯 **提示**: 第一次运行时会自动下载模型文件，请确保网络连接正常。 
+🎯 **Tip**: Model files will be automatically downloaded on first run. Please ensure stable network connection. 
