@@ -2,6 +2,8 @@
 
 Real-time speech transcription using Silero VAD (Voice Activity Detection) combined with Whisper for accurate speech-to-text conversion.
 
+![](./docs/demo.svg)
+
 ## Getting started
 
 ```

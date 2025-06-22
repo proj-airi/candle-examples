@@ -14,6 +14,7 @@
   - [Silero VAD (from files)](#silero-vad-from-files)
   - [Silero VAD (realtime without duration threshold)](#silero-vad-realtime-without-duration-threshold)
   - [Silero VAD (realtime like ChatGPT voice chat)](#silero-vad-realtime-like-chatgpt-voice-chat)
+  - [Silero VAD + Whisper (realtime like ChatGPT voice chat)](#silero-vad--whisper-realtime-like-chatgpt-voice-chat)
   - [Whisper Realtime (from microphone)](#whisper-realtime-from-microphone)
 - [Development](#development)
   - [NVIDIA CUDA](#nvidia-cuda)
@@ -34,9 +35,14 @@
 
 ![](./apps/silero-vad-realtime/docs/demo.svg)
 
+### [Silero VAD + Whisper (realtime like ChatGPT voice chat)](./apps/silero-vad-whisper-realtime/README.md)
+
+![](./apps/silero-vad-whisper-realtime/docs/demo.svg)
+
 ### [Whisper Realtime (from microphone)](./apps/whisper-realtime/README.md)
 
 ![](./apps/whisper-realtime/docs/demo.svg)
+
 
 ## Development
 
