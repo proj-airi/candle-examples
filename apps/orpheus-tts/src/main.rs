@@ -16,7 +16,7 @@ use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
 
 // https://github.com/canopyai/Orpheus-TTS/blob/df0b0d96685dd21885aef7f900ee7f705c669e94/realtime_streaming_example/main.py#L43
-const STOP_TOKEN_ID: u32 = 128258;
+const STOP_TOKEN_ID: u32 = 128_258;
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, clap::ValueEnum)]
 enum Voice {
@@ -39,21 +39,22 @@ enum Voice {
 }
 
 impl Voice {
-  fn as_str(&self) -> &'static str {
+  const fn as_str(self) -> &'static str {
     match self {
-      Voice::Tara => "tara",
-      Voice::Leah => "leah",
-      Voice::Jess => "jess",
-      Voice::Leo => "leo",
-      Voice::Dan => "dan",
-      Voice::Mia => "mia",
-      Voice::Zac => "zac",
-      Voice::Zoe => "zoe",
+      Self::Tara => "tara",
+      Self::Leah => "leah",
+      Self::Jess => "jess",
+      Self::Leo => "leo",
+      Self::Dan => "dan",
+      Self::Mia => "mia",
+      Self::Zac => "zac",
+      Self::Zoe => "zoe",
     }
   }
 }
 
 #[derive(Parser)]
+#[allow(clippy::struct_excessive_bools)]
 struct Args {
   #[arg(long)]
   cpu:                 bool,
@@ -154,12 +155,14 @@ pub trait Sample {
 }
 
 impl Sample for f32 {
+  #[allow(clippy::cast_possible_truncation)]
   fn to_i16(&self) -> i16 {
     (self.clamp(-1.0, 1.0) * 32767.0) as i16
   }
 }
 
 impl Sample for f64 {
+  #[allow(clippy::cast_possible_truncation)]
   fn to_i16(&self) -> i16 {
     (self.clamp(-1.0, 1.0) * 32767.0) as i16
   }
@@ -171,6 +174,7 @@ impl Sample for i16 {
   }
 }
 
+#[allow(clippy::missing_panics_doc)]
 pub fn write_pcm_as_wav<W: Write, S: Sample>(
   w: &mut W,
   samples: &[S],
@@ -178,9 +182,9 @@ pub fn write_pcm_as_wav<W: Write, S: Sample>(
 ) -> std::io::Result<()> {
   let len = 12u32; // header
   let len = len + 24u32; // fmt
-  let len = len + samples.len() as u32 * 2 + 8; // data
+  let len = len + u32::try_from(samples.len()).unwrap() * 2 + 8; // data
   let n_channels = 1u16;
-  let bytes_per_second = sample_rate * 2 * n_channels as u32;
+  let bytes_per_second = sample_rate * 2 * u32::from(n_channels);
   w.write_all(b"RIFF")?;
   w.write_all(&(len - 8).to_le_bytes())?; // total length minus 8 bytes
   w.write_all(b"WAVE")?;
@@ -197,21 +201,21 @@ pub fn write_pcm_as_wav<W: Write, S: Sample>(
 
   // Data block
   w.write_all(b"data")?;
-  w.write_all(&(samples.len() as u32 * 2).to_le_bytes())?;
-  for sample in samples.iter() {
-    w.write_all(&sample.to_i16().to_le_bytes())?
+  w.write_all(&(u32::try_from(samples.len()).unwrap() * 2).to_le_bytes())?;
+  for sample in samples {
+    w.write_all(&sample.to_i16().to_le_bytes())?;
   }
   Ok(())
 }
 
 struct Model {
-  model:            LlamaModel,
+  llama:            LlamaModel,
   tokenizer:        Tokenizer,
   logits_processor: LogitsProcessor,
   cache:            Cache,
   device:           Device,
   verbose_prompt:   bool,
-  snac_model:       SnacModel,
+  snac:             SnacModel,
   out_file:         String,
   voice:            Voice,
 }
@@ -226,15 +230,14 @@ impl Model {
       .build()?;
 
     let model_id = match args.orpheus_model_id {
-      Some(model_id) => model_id.to_string(),
+      Some(model_id) => model_id,
       None => match args.which_orpheus_model {
         WhichOrpheusModel::ThreeB0_1Ft => "canopylabs/orpheus-3b-0.1-ft".to_string(),
       },
     };
-    let revision = match args.revision {
-      Some(r) => r,
-      None => "main".to_string(),
-    };
+    let revision = args
+      .revision
+      .map_or_else(|| "main".to_string(), |r| r);
     let repo = api.repo(hf_hub::Repo::with_revision(model_id, hf_hub::RepoType::Model, revision));
     let model_file = match args.orpheus_model_file {
       Some(m) => vec![m.into()],
@@ -292,16 +295,16 @@ impl Model {
     println!("load the model in {:?}", start_time.elapsed());
 
     let cache = Cache::new(true, dtype, &config, &device)?;
-    let snac_model = load_snac_model(hf_token.clone().as_str(), &device)?;
+    let snac_model = load_snac_model(hf_token.as_str(), &device)?;
 
     Ok(Self {
-      model,
+      llama: model,
       tokenizer,
       logits_processor,
       cache,
       device,
       verbose_prompt: args.verbose_prompt,
-      snac_model,
+      snac: snac_model,
       out_file: args.out_file,
       voice: args.voice,
     })
@@ -319,7 +322,7 @@ impl Model {
       .map_err(E::msg)?;
 
     // https://github.com/canopyai/Orpheus-TTS/blob/df0b0d96685dd21885aef7f900ee7f705c669e94/orpheus_tts_pypi/orpheus_tts/engine_class.py#L82
-    let mut tokens = [&[128259], tokens.get_ids(), &[128009, 128260, 128261, 128257]].concat();
+    let mut tokens = [&[128_259], tokens.get_ids(), &[128_009, 128_260, 128_261, 128_257]].concat();
     if self.verbose_prompt {
       println!("prompt tokens: {tokens:?}");
     }
@@ -342,7 +345,7 @@ impl Model {
       let context = &tokens[tokens.len().saturating_sub(context_size)..];
       let input = Tensor::new(context, device)?.unsqueeze(0)?;
       let logits = self
-        .model
+        .llama
         .forward(&input, context_index, &mut cache)?;
       let logits = logits.squeeze(0)?;
       index_pos += context.len();
@@ -354,7 +357,7 @@ impl Model {
             Some(tok) => {
               let tok = tok.parse::<u32>()?;
               // https://github.com/canopyai/Orpheus-TTS/blob/df0b0d96685dd21885aef7f900ee7f705c669e94/orpheus_tts_pypi/orpheus_tts/decoder.py#L86C35-L86C63
-              let tok = tok - 10 - ((audio_tokens.len() as u32 % 7) * 4096);
+              let tok = tok - 10 - ((u32::try_from(audio_tokens.len()).unwrap() % 7) * 4096);
               audio_tokens.push(tok);
             },
             None => {
@@ -393,9 +396,7 @@ impl Model {
     let codes0 = Tensor::new(codes0, device)?.unsqueeze(0)?;
     let codes1 = Tensor::new(codes1, device)?.unsqueeze(0)?;
     let codes2 = Tensor::new(codes2, device)?.unsqueeze(0)?;
-    let pcm = self
-      .snac_model
-      .decode(&[&codes0, &codes1, &codes2])?;
+    let pcm = self.snac.decode(&[&codes0, &codes1, &codes2])?;
 
     println!("decoded to pcm {pcm:?}");
     let mut output = std::fs::File::create(&self.out_file)?;
