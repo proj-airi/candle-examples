@@ -65,7 +65,6 @@ impl ProcessingStats {
   }
 }
 
-// Main transcription endpoint - remove unused TranscriptionRequest construction
 pub async fn transcribe_audio(
   State(state): State<Arc<AppState>>,
   mut multipart: Multipart,
@@ -244,7 +243,7 @@ async fn convert_audio_to_pcm(audio_data: &[u8]) -> Result<Vec<f32>> {
 }
 
 // Process complete audio file and return full transcript
-pub async fn transcribe_audio_complete(
+async fn transcribe_audio_complete(
   state: Arc<AppState>,
   model_name: String, // Change to owned String
   audio_data: Vec<f32>,
@@ -298,7 +297,7 @@ pub async fn transcribe_audio_complete(
 }
 
 // Create streaming transcription response
-pub async fn create_transcription_stream(
+async fn create_transcription_stream(
   state: Arc<AppState>,
   model_name: String, // Change to owned String
   audio_data: Vec<f32>,
