@@ -27,7 +27,7 @@ use symphonia::{
   default::get_probe,
 };
 
-// Main transcription endpoint
+// Main transcription endpoint - remove unused TranscriptionRequest construction
 pub async fn transcribe_audio(
   State(state): State<Arc<AppState>>,
   mut multipart: Multipart,
@@ -50,34 +50,21 @@ pub async fn transcribe_audio(
     },
   };
 
-  println!("params: {:?}", params);
+  println!("Request params: {:?}", params);
 
-  // Parse query parameters for streaming
+  // Parse streaming parameter from form data
   let stream_enabled = params
     .get("stream")
     .map(|s| s.parse::<bool>().unwrap_or(false))
     .unwrap_or(false);
 
-  // Parse request parameters from form data
-  let request = TranscriptionRequest {
-    model: params
-      .get("model")
-      .cloned()
-      .unwrap_or_else(default_model),
-    language: params.get("language").cloned(),
-    prompt: params.get("prompt").cloned(),
-    response_format: params
-      .get("response_format")
-      .cloned()
-      .unwrap_or_else(default_response_format),
-    temperature: params
-      .get("temperature")
-      .and_then(|s| s.parse().ok())
-      .unwrap_or_else(default_temperature),
-    stream: stream_enabled,
-  };
+  // Get model name from parameters and clone it to make it owned
+  let model_name = params
+    .get("model")
+    .map(|s| s.clone()) // Clone to make it owned
+    .unwrap_or_else(|| "tiny".to_string()); // Use tiny as default
 
-  println!("Request: {:?}", request);
+  println!("Using model: {}, streaming: {}", model_name, stream_enabled);
 
   // Convert audio to PCM format
   let pcm_data = match convert_audio_to_pcm(&audio_data).await {
@@ -97,17 +84,16 @@ pub async fn transcribe_audio(
     },
   };
 
-  println!("Audio data length: {:?}", pcm_data.len());
+  println!("Audio data length: {} samples", pcm_data.len());
 
-  if request.stream {
+  if stream_enabled {
     // Return streaming response
-    let stream = create_transcription_stream(state, pcm_data).await;
+    let stream = create_transcription_stream(state, model_name, pcm_data).await?;
     let sse = Sse::new(stream).keep_alive(KeepAlive::default());
-
     Ok(sse.into_response())
   } else {
     // Return single response
-    match transcribe_audio_complete(state, pcm_data).await {
+    match transcribe_audio_complete(state, model_name, pcm_data).await {
       Ok(transcript) => Ok(Json(TranscriptionResponse { text: transcript }).into_response()),
       Err(e) => Err((
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -208,13 +194,17 @@ async fn convert_audio_to_pcm(audio_data: &[u8]) -> Result<Vec<f32>> {
 // Process complete audio file and return full transcript
 pub async fn transcribe_audio_complete(
   state: Arc<AppState>,
+  model_name: String, // Change to owned String
   audio_data: Vec<f32>,
 ) -> Result<String> {
   let sample_rate = 16000;
 
+  // Get the appropriate Whisper processor for this model
+  let whisper_processor = state.get_whisper_processor(&model_name).await?;
+
   // Process audio through VAD and Whisper
   let mut vad = state.vad.lock().await;
-  let mut whisper = state.whisper.lock().await;
+  let mut whisper = whisper_processor.lock().await;
   let mut audio_buffer = AudioBuffer::new(10000, 100, 500, sample_rate);
 
   let mut transcripts = Vec::new();
@@ -245,11 +235,30 @@ pub async fn transcribe_audio_complete(
 // Create streaming transcription response
 pub async fn create_transcription_stream(
   state: Arc<AppState>,
+  model_name: String, // Change to owned String
   audio_data: Vec<f32>,
-) -> impl Stream<Item = Result<Event, anyhow::Error>> {
+) -> Result<impl Stream<Item = Result<Event, anyhow::Error>>, (StatusCode, Json<ErrorResponse>)> {
+  // Get the appropriate Whisper processor for this model
+  let whisper_processor = match state.get_whisper_processor(&model_name).await {
+    Ok(processor) => processor,
+    Err(e) => {
+      return Err((
+        StatusCode::BAD_REQUEST,
+        Json(ErrorResponse {
+          error: ErrorDetail {
+            message: format!("Failed to load model '{}': {}", model_name, e),
+            error_type: "invalid_request_error".to_string(),
+            param: Some("model".to_string()),
+            code: None,
+          },
+        }),
+      ));
+    },
+  };
+
   let sample_rate = 16000;
 
-  stream::unfold((state, audio_data, 0, AudioBuffer::new(10000, 100, 500, sample_rate)), move |(state, audio_data, mut processed, mut audio_buffer)| async move {
+  Ok(stream::unfold((state, whisper_processor, audio_data, 0, AudioBuffer::new(10000, 100, 500, sample_rate)), move |(state, whisper_processor, audio_data, mut processed, mut audio_buffer)| async move {
     if processed >= audio_data.len() {
       return None;
     }
@@ -273,7 +282,7 @@ pub async fn create_transcription_stream(
         drop(vad);
 
         // Process complete audio through Whisper
-        let mut whisper = state.whisper.lock().await;
+        let mut whisper = whisper_processor.lock().await;
         if let Ok(transcript) = whisper.transcribe(&complete_audio) {
           if !transcript.trim().is_empty() && !transcript.contains("[BLANK_AUDIO]") {
             whisper_result = Some(transcript.trim().to_string());
@@ -294,6 +303,6 @@ pub async fn create_transcription_stream(
 
     let event = Event::default().json_data(event_data).unwrap();
 
-    Some((Ok(event), (state.clone(), audio_data, processed, audio_buffer)))
-  })
+    Some((Ok(event), (state.clone(), whisper_processor.clone(), audio_data, processed, audio_buffer)))
+  }))
 }
