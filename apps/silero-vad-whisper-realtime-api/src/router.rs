@@ -1,16 +1,13 @@
 use std::{collections::HashMap, sync::Arc, time::Instant};
 
-use crate::AppState;
-use crate::api::{ErrorDetail, ErrorResponse, StreamChunk, TranscriptionResponse};
-
-use crate::audio_manager::AudioBuffer;
 use anyhow::Result;
 use axum::{
   Json,
   extract::{Multipart, State},
   http::StatusCode,
   response::{
-    IntoResponse, Response,
+    IntoResponse,
+    Response,
     sse::{Event, KeepAlive, Sse},
   },
 };
@@ -27,26 +24,32 @@ use symphonia::{
   default::get_probe,
 };
 
+use crate::{
+  AppState,
+  api::{ErrorDetail, ErrorResponse, StreamChunk, TranscriptionResponse},
+  audio_manager::AudioBuffer,
+};
+
 // Performance statistics struct
 #[derive(Debug)]
 struct ProcessingStats {
-  total_duration: std::time::Duration,
-  audio_conversion_duration: std::time::Duration,
-  model_loading_duration: std::time::Duration,
-  vad_processing_duration: std::time::Duration,
+  total_duration:                 std::time::Duration,
+  audio_conversion_duration:      std::time::Duration,
+  model_loading_duration:         std::time::Duration,
+  vad_processing_duration:        std::time::Duration,
   whisper_transcription_duration: std::time::Duration,
-  audio_length_seconds: f32,
+  audio_length_seconds:           f32,
 }
 
 impl ProcessingStats {
   fn new() -> Self {
     Self {
-      total_duration: std::time::Duration::ZERO,
-      audio_conversion_duration: std::time::Duration::ZERO,
-      model_loading_duration: std::time::Duration::ZERO,
-      vad_processing_duration: std::time::Duration::ZERO,
+      total_duration:                 std::time::Duration::ZERO,
+      audio_conversion_duration:      std::time::Duration::ZERO,
+      model_loading_duration:         std::time::Duration::ZERO,
+      vad_processing_duration:        std::time::Duration::ZERO,
       whisper_transcription_duration: std::time::Duration::ZERO,
-      audio_length_seconds: 0.0,
+      audio_length_seconds:           0.0,
     }
   }
 
@@ -80,10 +83,10 @@ pub async fn transcribe_audio(
         StatusCode::BAD_REQUEST,
         Json(ErrorResponse {
           error: ErrorDetail {
-            message: format!("Failed to extract form data: {}", e),
+            message:    format!("Failed to extract form data: {}", e),
             error_type: "invalid_request_error".to_string(),
-            param: Some("form".to_string()),
-            code: None,
+            param:      Some("form".to_string()),
+            code:       None,
           },
         }),
       ));
@@ -115,10 +118,10 @@ pub async fn transcribe_audio(
         StatusCode::BAD_REQUEST,
         Json(ErrorResponse {
           error: ErrorDetail {
-            message: format!("Failed to process audio file: {}", e),
+            message:    format!("Failed to process audio file: {}", e),
             error_type: "invalid_request_error".to_string(),
-            param: Some("file".to_string()),
-            code: None,
+            param:      Some("file".to_string()),
+            code:       None,
           },
         }),
       ));
@@ -149,10 +152,10 @@ pub async fn transcribe_audio(
           StatusCode::INTERNAL_SERVER_ERROR,
           Json(ErrorResponse {
             error: ErrorDetail {
-              message: format!("Transcription failed: {}", e),
+              message:    format!("Transcription failed: {}", e),
               error_type: "server_error".to_string(),
-              param: None,
-              code: None,
+              param:      None,
+              code:       None,
             },
           }),
         ))
@@ -314,10 +317,10 @@ async fn create_transcription_stream(
         StatusCode::BAD_REQUEST,
         Json(ErrorResponse {
           error: ErrorDetail {
-            message: format!("Failed to load model '{}': {}", model_name, e),
+            message:    format!("Failed to load model '{}': {}", model_name, e),
             error_type: "invalid_request_error".to_string(),
-            param: Some("model".to_string()),
-            code: None,
+            param:      Some("model".to_string()),
+            code:       None,
           },
         }),
       ));
@@ -378,7 +381,7 @@ async fn create_transcription_stream(
       StreamChunk { text: transcript, timestamp: Some(processed as f64 / sample_rate as f64) }
     } else {
       StreamChunk {
-        text: format!("Processing... ({:.1}%)", (processed as f64 / audio_data.len() as f64) * 100.0),
+        text:      format!("Processing... ({:.1}%)", (processed as f64 / audio_data.len() as f64) * 100.0),
         timestamp: Some(processed as f64 / sample_rate as f64),
       }
     };

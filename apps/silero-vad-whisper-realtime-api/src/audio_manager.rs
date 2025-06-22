@@ -1,16 +1,16 @@
 use std::time::Instant;
 
 pub struct AudioBuffer {
-  buffer: Vec<f32>,
-  max_duration_samples: usize,
-  min_speech_duration_samples: usize,
+  buffer:                       Vec<f32>,
+  max_duration_samples:         usize,
+  min_speech_duration_samples:  usize,
   min_silence_duration_samples: usize,
-  is_recording: bool,
-  silence_start: Option<Instant>,
-  speech_start: Option<Instant>,
-  samples_since_speech_start: usize,
-  samples_since_silence_start: usize,
-  sample_rate: usize,
+  is_recording:                 bool,
+  silence_start:                Option<Instant>,
+  speech_start:                 Option<Instant>,
+  samples_since_speech_start:   usize,
+  samples_since_silence_start:  usize,
+  sample_rate:                  usize,
 }
 
 impl AudioBuffer {

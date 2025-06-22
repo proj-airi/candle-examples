@@ -89,11 +89,11 @@ impl WhichWhisperModel {
 }
 
 pub struct WhisperProcessor {
-  pub model: WhisperModel,
-  pub tokenizer: Tokenizer,
-  pub config: Config,
+  pub model:       WhisperModel,
+  pub tokenizer:   Tokenizer,
+  pub config:      Config,
   pub mel_filters: Vec<f32>,
-  pub device: Device,
+  pub device:      Device,
 }
 
 impl WhisperProcessor {
