@@ -12,13 +12,13 @@ use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 
 use crate::{
-  asr::transcribe_audio,
+  router::transcribe_audio,
   vad::VADProcessor,
   whisper::{WhichWhisperModel, WhisperProcessor},
 };
 
 mod api;
-mod asr;
+mod router;
 mod audio_manager;
 mod vad;
 mod whisper;
