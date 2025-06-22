@@ -21,7 +21,7 @@ use symphonia::{
     audio::{AudioBufferRef, Signal},
     codecs::DecoderOptions,
     formats::FormatOptions,
-    io::MediaSourceStream,
+    io::{MediaSourceStream, MediaSourceStreamOptions},
     meta::MetadataOptions,
     probe::Hint,
   },
@@ -46,7 +46,7 @@ struct ProcessingStats {
 }
 
 impl ProcessingStats {
-  fn new() -> Self {
+  const fn new() -> Self {
     Self {
       total_duration:                 Duration::ZERO,
       audio_conversion_duration:      Duration::ZERO,
@@ -66,7 +66,7 @@ impl ProcessingStats {
     println!("  ⏱️  Total processing: {:.2}ms", self.total_duration.as_secs_f64() * 1000.0);
     println!("  🎵 Audio length: {:.2}s", self.audio_length_seconds);
     if self.audio_length_seconds > 0.0 {
-      let real_time_factor = self.total_duration.as_secs_f64() / self.audio_length_seconds as f64;
+      let real_time_factor = self.total_duration.as_secs_f64() / f64::from(self.audio_length_seconds);
       println!("  ⚡ Real-time factor: {real_time_factor:.2}x");
     }
   }
@@ -77,7 +77,7 @@ pub async fn transcribe_audio(
   mut multipart: Multipart,
 ) -> Result<Response, (StatusCode, Json<ErrorResponse>)> {
   let start_time = Instant::now();
-  let mut stats = ProcessingStats::new();
+  let mut processing_stats = ProcessingStats::new();
 
   // Extract both audio file and parameters from multipart form
   let (audio_data, params) = match extract_multipart_data(&mut multipart).await {
@@ -102,8 +102,7 @@ pub async fn transcribe_audio(
   // Parse streaming parameter from form data
   let stream_enabled = params
     .get("stream")
-    .map(|s| s.parse::<bool>().unwrap_or(false))
-    .unwrap_or(false);
+    .is_some_and(|s| s.parse::<bool>().unwrap_or(false));
 
   // Get model name from parameters and clone it to make it owned
   let model_name = params
@@ -130,27 +129,28 @@ pub async fn transcribe_audio(
       ));
     },
   };
-  stats.audio_conversion_duration = conversion_start.elapsed();
-  stats.audio_length_seconds = pcm_data.len() as f32 / 16000.0; // Assuming 16kHz sample rate
 
-  println!("Audio data length: {} samples ({:.2}s)", pcm_data.len(), stats.audio_length_seconds);
+  processing_stats.audio_conversion_duration = conversion_start.elapsed();
+  processing_stats.audio_length_seconds = pcm_data.len() as f32 / 16000.0; // Assuming 16kHz sample rate
+
+  println!("Audio data length: {} samples ({:.2}s)", pcm_data.len(), processing_stats.audio_length_seconds);
 
   if stream_enabled {
     // Return streaming response
-    let stream = create_transcription_stream(state, model_name, pcm_data, stats).await?;
+    let stream = create_transcription_stream(state, model_name, pcm_data, processing_stats).await?;
     let sse = Sse::new(stream).keep_alive(KeepAlive::default());
     Ok(sse.into_response())
   } else {
     // Return single response
-    match transcribe_audio_complete(state, model_name, pcm_data, &mut stats).await {
+    match transcribe_audio_complete(state, model_name, pcm_data, &mut processing_stats).await {
       Ok(transcript) => {
-        stats.total_duration = start_time.elapsed();
-        stats.print_summary();
+        processing_stats.total_duration = start_time.elapsed();
+        processing_stats.print_summary();
         Ok(Json(TranscriptionResponse { text: transcript }).into_response())
       },
       Err(e) => {
-        stats.total_duration = start_time.elapsed();
-        stats.print_summary();
+        processing_stats.total_duration = start_time.elapsed();
+        processing_stats.print_summary();
         Err((
           StatusCode::INTERNAL_SERVER_ERROR,
           Json(ErrorResponse {
@@ -192,15 +192,16 @@ async fn extract_multipart_data(multipart: &mut Multipart) -> Result<(Vec<u8>, H
 }
 
 // Convert various audio formats to PCM
+#[allow(clippy::unused_async)]
 async fn convert_audio_to_pcm(audio_data: &[u8]) -> Result<Vec<f32>> {
   let cursor = std::io::Cursor::new(audio_data.to_vec());
-  let media_source = MediaSourceStream::new(Box::new(cursor), Default::default());
+  let media_source = MediaSourceStream::new(Box::new(cursor), MediaSourceStreamOptions::default());
 
   let mut hint = Hint::new();
   hint.mime_type("audio/wav"); // You might want to detect this automatically
 
-  let meta_opts: MetadataOptions = Default::default();
-  let fmt_opts: FormatOptions = Default::default();
+  let meta_opts = MetadataOptions::default();
+  let fmt_opts = FormatOptions::default();
 
   let probed = get_probe().format(&hint, media_source, &fmt_opts, &meta_opts)?;
 
@@ -211,7 +212,7 @@ async fn convert_audio_to_pcm(audio_data: &[u8]) -> Result<Vec<f32>> {
     .find(|t| t.codec_params.codec != symphonia::core::codecs::CODEC_TYPE_NULL)
     .ok_or_else(|| anyhow::anyhow!("No audio track found"))?;
 
-  let dec_opts: DecoderOptions = Default::default();
+  let dec_opts = DecoderOptions::default();
   let mut decoder = symphonia::default::get_codecs().make(&track.codec_params, &dec_opts)?;
 
   let track_id = track.id;
@@ -236,6 +237,7 @@ async fn convert_audio_to_pcm(audio_data: &[u8]) -> Result<Vec<f32>> {
       },
       AudioBufferRef::S32(buf) => {
         for &sample in buf.chan(0) {
+          #[allow(clippy::cast_precision_loss)]
           pcm_data.push(sample as f32 / i32::MAX as f32);
         }
       },
@@ -253,14 +255,14 @@ async fn transcribe_audio_complete(
   state: Arc<AppState>,
   model_name: String, // Change to owned String
   audio_data: Vec<f32>,
-  stats: &mut ProcessingStats,
+  processing_stats: &mut ProcessingStats,
 ) -> Result<String> {
   let sample_rate = 16000;
 
   // Get the appropriate Whisper processor for this model with timing
   let model_loading_start = Instant::now();
   let whisper_processor = state.get_whisper_processor(&model_name).await?;
-  stats.model_loading_duration = model_loading_start.elapsed();
+  processing_stats.model_loading_duration = model_loading_start.elapsed();
 
   // Process audio through VAD and Whisper
   let mut vad = state.vad.lock().await;
@@ -296,8 +298,8 @@ async fn transcribe_audio_complete(
     }
   }
 
-  stats.vad_processing_duration = vad_start.elapsed() - whisper_total_time;
-  stats.whisper_transcription_duration = whisper_total_time;
+  processing_stats.vad_processing_duration = vad_start.elapsed() - whisper_total_time;
+  processing_stats.whisper_transcription_duration = whisper_total_time;
 
   Ok(transcripts.join(" "))
 }
@@ -307,7 +309,7 @@ async fn create_transcription_stream(
   state: Arc<AppState>,
   model_name: String, // Change to owned String
   audio_data: Vec<f32>,
-  mut stats: ProcessingStats,
+  mut processing_stats: ProcessingStats,
 ) -> Result<impl Stream<Item = Result<Event, anyhow::Error>>, (StatusCode, Json<ErrorResponse>)> {
   let stream_start = Instant::now();
 
@@ -329,11 +331,11 @@ async fn create_transcription_stream(
       ));
     },
   };
-  stats.model_loading_duration = model_loading_start.elapsed();
+  processing_stats.model_loading_duration = model_loading_start.elapsed();
 
   let sample_rate = 16000;
 
-  Ok(stream::unfold((state, whisper_processor, audio_data, 0, AudioBuffer::new(10000, 100, 500, sample_rate), stats, stream_start), move |(state, whisper_processor, audio_data, mut processed, mut audio_buffer, mut stats, stream_start)| async move {
+  Ok(stream::unfold((state, whisper_processor, audio_data, 0, AudioBuffer::new(10000, 100, 500, sample_rate), processing_stats, stream_start), move |(state, whisper_processor, audio_data, mut processed, mut audio_buffer, mut stats, stream_start)| async move {
     if processed >= audio_data.len() {
       // Print final statistics for streaming
       stats.total_duration = stream_start.elapsed();
@@ -381,11 +383,14 @@ async fn create_transcription_stream(
 
     // Create event with actual transcription or progress update
     let event_data = if let Some(transcript) = whisper_result {
-      StreamChunk { text: transcript, timestamp: Some(processed as f64 / sample_rate as f64) }
+      #[allow(clippy::cast_precision_loss)]
+      StreamChunk { text: transcript, timestamp: Some(processed as f64 / f64::from(sample_rate)) }
     } else {
       StreamChunk {
-        text:      format!("Processing... ({:.1}%)", (processed as f64 / audio_data.len() as f64) * 100.0),
-        timestamp: Some(processed as f64 / sample_rate as f64),
+        #[allow(clippy::cast_precision_loss)]
+        text:                                            format!("Processing... ({:.1}%)", (processed as f64 / audio_data.len() as f64) * 100.0),
+        #[allow(clippy::cast_precision_loss)]
+        timestamp:                                       Some(processed as f64 / f64::from(sample_rate)),
       }
     };
 

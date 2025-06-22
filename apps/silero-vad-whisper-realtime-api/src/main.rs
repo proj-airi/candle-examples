@@ -33,6 +33,7 @@ struct AppState {
 }
 
 impl AppState {
+  #[allow(clippy::unused_async)]
   async fn new() -> Result<Self> {
     // Determine device to use
     let device = if std::env::var("CANDLE_FORCE_CPU").is_ok() {
