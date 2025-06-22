@@ -321,7 +321,7 @@ impl Model {
     // https://github.com/canopyai/Orpheus-TTS/blob/df0b0d96685dd21885aef7f900ee7f705c669e94/orpheus_tts_pypi/orpheus_tts/engine_class.py#L82
     let mut tokens = [&[128259], tokens.get_ids(), &[128009, 128260, 128261, 128257]].concat();
     if self.verbose_prompt {
-      println!("prompt tokens: {:?}", tokens);
+      println!("prompt tokens: {tokens:?}");
     }
     let mut cache = self.cache.clone();
 
