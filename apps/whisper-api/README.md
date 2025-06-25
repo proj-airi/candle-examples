@@ -1,4 +1,4 @@
-# silero-vad-whisper-realtime-api
+# whisper-api
 
 > An OpenAI-compatible speech transcription API service with real-time streaming response (SSE), integrated with Silero VAD and Whisper models.
 >
@@ -8,7 +8,7 @@
 
 ```
 git clone https://github.com/proj-airi/candle-examples.git
-cd apps/silero-vad-whisper-realtime-api
+cd apps/whisper-api
 ```
 
 ## Build
@@ -21,19 +21,19 @@ cargo clean
 ### NVIDIA CUDA
 
 ```
-cargo build --package silero-vad-whisper-realtime-api --features cuda
+cargo build --package whisper-api --features cuda
 ```
 
 ### macOS Metal
 
 ```
-cargo build --package silero-vad-whisper-realtime-api --features metal
+cargo build --package whisper-api --features metal
 ```
 
 ### CPU Only
 
 ```
-cargo build --package silero-vad-whisper-realtime-api
+cargo build --package whisper-api
 ```
 
 ## Run
@@ -41,7 +41,7 @@ cargo build --package silero-vad-whisper-realtime-api
 ### Any platforms
 
 ```shell
-cargo run --package silero-vad-whisper-realtime-api --release
+cargo run --package whisper-api --release
 ```
 
 The server will start at `http://localhost:3000`.
