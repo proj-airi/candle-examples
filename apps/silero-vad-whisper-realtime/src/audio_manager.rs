@@ -26,7 +26,19 @@ impl AudioManager {
         .input_devices()?
         .find(|d| d.name().map(|n| n == name).unwrap_or(false)),
     }
-    .ok_or_else(|| anyhow::anyhow!("No input device found"))?;
+    .ok_or_else(|| {
+      anyhow::anyhow!(
+        "No input device found, current available devices: {:?}",
+        host
+          .input_devices()
+          .unwrap()
+          .map(|d| d
+            .name()
+            .unwrap_or_else(|_| "Unnamed Device".to_string()))
+          .collect::<Vec<String>>()
+          .join(", ")
+      )
+    })?;
 
     println!("Using audio input device: {}", device.name()?);
 
