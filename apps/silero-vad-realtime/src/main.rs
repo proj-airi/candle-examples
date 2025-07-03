@@ -57,7 +57,19 @@ fn setup_audio_capture(args: &Args) -> Result<(cpal::Stream, mpsc::Receiver<Vec<
         .unwrap_or(false)
     }),
   }
-  .ok_or_else(|| anyhow::anyhow!("Failed to find input device"))?;
+  .ok_or_else(|| {
+    anyhow::anyhow!(
+      "No input device found, current available devices: {:?}",
+      host
+        .input_devices()
+        .unwrap()
+        .map(|d| d
+          .name()
+          .unwrap_or_else(|_| "Unnamed Device".to_string()))
+        .collect::<Vec<String>>()
+        .join(", ")
+    )
+  })?;
 
   println!("Using input device: {}", device.name()?);
 
