@@ -20,7 +20,9 @@ impl VADProcessor {
     device: Device,
     threshold: f32,
   ) -> Result<Self> {
-    let api = hf_hub::api::sync::Api::new()?;
+    let api = hf_hub::api::sync::ApiBuilder::new()
+      .with_endpoint("https://hf-mirror.com".to_string())
+      .build()?;
     let model_path = api
       .model("onnx-community/silero-vad".into())
       .get("onnx/model.onnx")?;

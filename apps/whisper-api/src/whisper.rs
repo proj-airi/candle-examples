@@ -102,7 +102,9 @@ impl WhisperProcessor {
     device: Device,
   ) -> Result<Self> {
     // Load the Whisper model based on the provided model type
-    let api = Api::new()?;
+    let api = hf_hub::api::sync::ApiBuilder::new()
+      .with_endpoint("https://hf-mirror.com".to_string())
+      .build()?;
     let (model_id, revision) = model.model_and_revision();
     let repo = api.repo(Repo::with_revision(model_id.to_string(), RepoType::Model, revision.to_string()));
 
