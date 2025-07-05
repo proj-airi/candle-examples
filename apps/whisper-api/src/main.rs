@@ -23,6 +23,8 @@ mod audio_manager;
 mod router;
 mod vad;
 mod whisper;
+mod huggingface;
+
 
 // Application state with dynamic model loading
 struct AppState {

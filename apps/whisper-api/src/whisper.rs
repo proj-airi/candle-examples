@@ -4,8 +4,10 @@ use candle_core::{Device, IndexOp, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::whisper::{self as whisper_model, Config, audio};
 use clap::ValueEnum;
-use hf_hub::{Repo, RepoType, api::sync::Api};
+use hf_hub::{Repo, RepoType};
 use tokenizers::Tokenizer;
+
+use crate::huggingface;
 
 pub enum WhisperModel {
   Normal(whisper_model::model::Whisper),
@@ -102,9 +104,7 @@ impl WhisperProcessor {
     device: Device,
   ) -> Result<Self> {
     // Load the Whisper model based on the provided model type
-    let api = hf_hub::api::sync::ApiBuilder::new()
-      .with_endpoint("https://hf-mirror.com".to_string())
-      .build()?;
+    let api = huggingface::create_hf_api()?;
     let (model_id, revision) = model.model_and_revision();
     let repo = api.repo(Repo::with_revision(model_id.to_string(), RepoType::Model, revision.to_string()));
 
