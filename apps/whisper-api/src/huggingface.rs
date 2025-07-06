@@ -5,14 +5,20 @@ use anyhow::Result;
 pub fn create_hf_api() -> Result<hf_hub::api::sync::Api> {
   let mut builder = hf_hub::api::sync::ApiBuilder::new();
 
-  // Read HF_MIRROR environment variable for endpoint
-  if let Ok(mirror_url) = std::env::var("HF_MIRROR") {
-    builder = builder.with_endpoint(mirror_url);
+  let endpoint = std::env::var("HF_ENDPOINT").unwrap_or_default();
+  let cache_dir = std::env::var("HF_HOME").unwrap_or_default();
+  let token = std::env::var("HF_TOKEN").unwrap_or_default();
+
+  if !endpoint.is_empty() {
+    builder = builder.with_endpoint(endpoint);
   }
 
-  // Read HF_HOME environment variable for cache directory
-  if let Ok(cache_dir) = std::env::var("HF_HOME") {
+  if !cache_dir.is_empty() {
     builder = builder.with_cache_dir(PathBuf::from(cache_dir));
+  }
+
+  if !token.is_empty() {
+    builder = builder.with_token(Some(token));
   }
 
   Ok(builder.build()?)
