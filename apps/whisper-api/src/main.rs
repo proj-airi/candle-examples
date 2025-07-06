@@ -20,11 +20,10 @@ use crate::{
 
 mod api;
 mod audio_manager;
+mod huggingface;
 mod router;
 mod vad;
 mod whisper;
-mod huggingface;
-
 
 // Application state with dynamic model loading
 struct AppState {
