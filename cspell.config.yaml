@@ -11,6 +11,7 @@ words:
   - dtolnay
   - DTYPE
   - gguf
+  - huggingface
   - logits
   - logprob
   - melfilters

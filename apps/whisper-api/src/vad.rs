@@ -4,6 +4,8 @@ use anyhow::Result;
 use candle_core::{DType, Device, Tensor};
 use candle_onnx::simple_eval;
 
+use crate::huggingface;
+
 pub struct VADProcessor {
   model:        candle_onnx::onnx::ModelProto,
   frame_size:   usize,
@@ -20,7 +22,7 @@ impl VADProcessor {
     device: Device,
     threshold: f32,
   ) -> Result<Self> {
-    let api = hf_hub::api::sync::Api::new()?;
+    let api = huggingface::create_hf_api()?;
     let model_path = api
       .model("onnx-community/silero-vad".into())
       .get("onnx/model.onnx")?;
