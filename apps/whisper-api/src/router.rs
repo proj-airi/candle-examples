@@ -1,5 +1,6 @@
 use std::{
   collections::HashMap,
+  pin::Pin,
   sync::Arc,
   time::{Duration, Instant},
 };
@@ -15,7 +16,7 @@ use axum::{
     sse::{Event, KeepAlive, Sse},
   },
 };
-use futures::stream::{self, Stream};
+use futures::stream::{self, Stream, StreamExt};
 use symphonia::{
   core::{
     audio::{AudioBufferRef, Signal},
@@ -266,16 +267,31 @@ async fn transcribe_audio_complete(
   let whisper_processor = state.get_whisper_processor(&model_name).await?;
   processing_stats.model_loading_duration = model_loading_start.elapsed();
 
+  // Check if VAD is enabled
+  if !state.vad_enabled {
+    println!("🔇 VAD disabled, processing entire audio directly");
+    let whisper_start = Instant::now();
+    let mut whisper = whisper_processor.lock().await;
+    let transcript = whisper.transcribe(&audio_data)?;
+    processing_stats.whisper_transcription_duration = whisper_start.elapsed();
+    processing_stats.vad_processing_duration = Duration::ZERO;
+
+    return Ok(transcript);
+  }
+
   // Process audio through VAD and Whisper
   let mut vad = state.vad.lock().await;
   let mut whisper = whisper_processor.lock().await;
-  let mut audio_buffer = AudioBuffer::new(10000, 100, 500, sample_rate);
+  // Use more lenient parameters: max_duration=10s, min_speech=50ms, min_silence=300ms
+  let mut audio_buffer = AudioBuffer::new(10000, 50, 300, sample_rate);
 
   let mut transcripts = Vec::new();
   let mut frame_buffer = Vec::<f32>::new();
 
   let vad_start = Instant::now();
   let mut whisper_total_time = Duration::ZERO;
+  let mut speech_frame_count = 0;
+  let mut total_frame_count = 0;
 
   // Process in chunks
   for chunk in audio_data.chunks(1024) {
@@ -286,6 +302,11 @@ async fn transcribe_audio_complete(
       let frame: Vec<f32> = frame_buffer.drain(..512).collect();
       let speech_prob = vad.process_chunk(&frame)?;
       let is_speech = vad.is_speech(speech_prob);
+
+      total_frame_count += 1;
+      if is_speech {
+        speech_frame_count += 1;
+      }
 
       if let Some(complete_audio) = audio_buffer.add_chunk(&frame, is_speech) {
         // Measure Whisper transcription time
@@ -300,8 +321,23 @@ async fn transcribe_audio_complete(
     }
   }
 
+  println!("🎯 VAD Stats: {speech_frame_count}/{total_frame_count} frames detected as speech ({:.1}%)", speech_frame_count as f32 / total_frame_count as f32 * 100.0);
+
   processing_stats.vad_processing_duration = vad_start.elapsed() - whisper_total_time;
   processing_stats.whisper_transcription_duration = whisper_total_time;
+
+  // Fallback: If no segments were detected by VAD, process the entire audio
+  if transcripts.is_empty() && !audio_data.is_empty() {
+    println!("⚠️  No VAD segments detected, processing entire audio as fallback");
+    let whisper_start = Instant::now();
+    let transcript = whisper.transcribe(&audio_data)?;
+    let whisper_fallback_time = whisper_start.elapsed();
+    processing_stats.whisper_transcription_duration += whisper_fallback_time;
+
+    if !transcript.trim().is_empty() && !transcript.contains("[BLANK_AUDIO]") {
+      transcripts.push(transcript.trim().to_string());
+    }
+  }
 
   Ok(transcripts.join(" "))
 }
@@ -312,7 +348,7 @@ async fn create_transcription_stream(
   model_name: String, // Change to owned String
   audio_data: Vec<f32>,
   mut processing_stats: ProcessingStats,
-) -> Result<impl Stream<Item = Result<Event, anyhow::Error>>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Pin<Box<dyn Stream<Item = Result<Event, anyhow::Error>> + Send>>, (StatusCode, Json<ErrorResponse>)> {
   let stream_start = Instant::now();
 
   // Get the appropriate Whisper processor for this model with timing
@@ -337,68 +373,103 @@ async fn create_transcription_stream(
 
   let sample_rate = 16000;
 
-  Ok(stream::unfold((state, whisper_processor, audio_data, 0, AudioBuffer::new(10000, 100, 500, sample_rate), processing_stats, stream_start), move |(state, whisper_processor, audio_data, mut processed, mut audio_buffer, mut stats, stream_start)| async move {
-    if processed >= audio_data.len() {
-      // Print final statistics for streaming
-      stats.total_duration = stream_start.elapsed();
-      stats.print_summary();
-      return None;
-    }
-
-    // Process audio in chunks suitable for VAD (512 samples at a time)
-    let chunk_size = 512.min(audio_data.len() - processed);
-    let chunk = &audio_data[processed..processed + chunk_size];
-    processed += chunk_size;
-
-    // Process through VAD and Whisper processors
-    let mut whisper_result = None;
-
-    // Process through VAD
-    let vad_chunk_start = Instant::now();
-    let mut vad = state.vad.lock().await;
-    if let Ok(speech_prob) = vad.process_chunk(chunk) {
-      let is_speech = vad.is_speech(speech_prob);
-
-      // Add to audio buffer and check if we have complete audio
-      if let Some(complete_audio) = audio_buffer.add_chunk(chunk, is_speech) {
-        // Release VAD lock before acquiring Whisper lock
-        drop(vad);
-        let vad_chunk_time = vad_chunk_start.elapsed();
-        stats.vad_processing_duration += vad_chunk_time;
-
-        // Process complete audio through Whisper
-        let whisper_chunk_start = Instant::now();
-        let mut whisper = whisper_processor.lock().await;
-        if let Ok(transcript) = whisper.transcribe(&complete_audio) {
-          let whisper_chunk_time = whisper_chunk_start.elapsed();
-          stats.whisper_transcription_duration += whisper_chunk_time;
-
-          if !transcript.trim().is_empty() && !transcript.contains("[BLANK_AUDIO]") {
-            whisper_result = Some(transcript.trim().to_string());
-            println!("🎯 Chunk transcribed in {:.2}ms: \"{}\"", whisper_chunk_time.as_secs_f64() * 1000.0, transcript.trim());
-          }
-        }
-      }
-    } else {
-      stats.vad_processing_duration += vad_chunk_start.elapsed();
-    }
-
-    // Create event with actual transcription or progress update
-    #[allow(clippy::option_if_let_else)]
-    let event_data = if let Some(transcript) = whisper_result {
-      #[allow(clippy::cast_precision_loss)]
-      StreamChunk { text: transcript, timestamp: Some(processed as f64 / f64::from(sample_rate)) }
-    } else {
-      StreamChunk {
-        #[allow(clippy::cast_precision_loss)]
-        text:                                            format!("Processing... ({:.1}%)", (processed as f64 / audio_data.len() as f64) * 100.0),
-        #[allow(clippy::cast_precision_loss)]
-        timestamp:                                       Some(processed as f64 / f64::from(sample_rate)),
-      }
+  // If VAD is disabled, process entire audio directly and return as single stream event
+  if !state.vad_enabled {
+    println!("🔇 VAD disabled for streaming, processing entire audio directly");
+    let whisper_start = Instant::now();
+    let mut whisper = whisper_processor.lock().await;
+    let transcript = match whisper.transcribe(&audio_data) {
+      Ok(text) => text,
+      Err(e) => {
+        return Err((
+          StatusCode::INTERNAL_SERVER_ERROR,
+          Json(ErrorResponse {
+            error: ErrorDetail {
+              message:    format!("Transcription failed: {e}"),
+              error_type: "server_error".to_string(),
+              param:      None,
+              code:       None,
+            },
+          }),
+        ));
+      },
     };
+    processing_stats.whisper_transcription_duration = whisper_start.elapsed();
+    processing_stats.vad_processing_duration = Duration::ZERO;
+    processing_stats.total_duration = stream_start.elapsed();
+    processing_stats.print_summary();
 
+    let event_data = StreamChunk { text: transcript, timestamp: Some(audio_data.len() as f64 / f64::from(sample_rate)) };
     let event = Event::default().json_data(event_data).unwrap();
 
-    Some((Ok(event), (state.clone(), whisper_processor.clone(), audio_data, processed, audio_buffer, stats, stream_start)))
-  }))
+    return Ok(stream::once(async move { Ok(event) }).boxed());
+  }
+
+  Ok(
+    stream::unfold((state, whisper_processor, audio_data, 0, AudioBuffer::new(10000, 50, 300, sample_rate), processing_stats, stream_start), move |(state, whisper_processor, audio_data, mut processed, mut audio_buffer, mut stats, stream_start)| async move {
+      if processed >= audio_data.len() {
+        // Print final statistics for streaming
+        stats.total_duration = stream_start.elapsed();
+        stats.print_summary();
+        return None;
+      }
+
+      // Process audio in chunks suitable for VAD (512 samples at a time)
+      let chunk_size = 512.min(audio_data.len() - processed);
+      let chunk = &audio_data[processed..processed + chunk_size];
+      processed += chunk_size;
+
+      // Process through VAD and Whisper processors
+      let mut whisper_result = None;
+
+      // Process through VAD
+      let vad_chunk_start = Instant::now();
+      let mut vad = state.vad.lock().await;
+      if let Ok(speech_prob) = vad.process_chunk(chunk) {
+        let is_speech = vad.is_speech(speech_prob);
+
+        // Add to audio buffer and check if we have complete audio
+        if let Some(complete_audio) = audio_buffer.add_chunk(chunk, is_speech) {
+          // Release VAD lock before acquiring Whisper lock
+          drop(vad);
+          let vad_chunk_time = vad_chunk_start.elapsed();
+          stats.vad_processing_duration += vad_chunk_time;
+
+          // Process complete audio through Whisper
+          let whisper_chunk_start = Instant::now();
+          let mut whisper = whisper_processor.lock().await;
+          if let Ok(transcript) = whisper.transcribe(&complete_audio) {
+            let whisper_chunk_time = whisper_chunk_start.elapsed();
+            stats.whisper_transcription_duration += whisper_chunk_time;
+
+            if !transcript.trim().is_empty() && !transcript.contains("[BLANK_AUDIO]") {
+              whisper_result = Some(transcript.trim().to_string());
+              println!("🎯 Chunk transcribed in {:.2}ms: \"{}\"", whisper_chunk_time.as_secs_f64() * 1000.0, transcript.trim());
+            }
+          }
+        }
+      } else {
+        stats.vad_processing_duration += vad_chunk_start.elapsed();
+      }
+
+      // Create event with actual transcription or progress update
+      #[allow(clippy::option_if_let_else)]
+      let event_data = if let Some(transcript) = whisper_result {
+        #[allow(clippy::cast_precision_loss)]
+        StreamChunk { text: transcript, timestamp: Some(processed as f64 / f64::from(sample_rate)) }
+      } else {
+        StreamChunk {
+          #[allow(clippy::cast_precision_loss)]
+          text:                                            format!("Processing... ({:.1}%)", (processed as f64 / audio_data.len() as f64) * 100.0),
+          #[allow(clippy::cast_precision_loss)]
+          timestamp:                                       Some(processed as f64 / f64::from(sample_rate)),
+        }
+      };
+
+      let event = Event::default().json_data(event_data).unwrap();
+
+      Some((Ok(event), (state.clone(), whisper_processor.clone(), audio_data, processed, audio_buffer, stats, stream_start)))
+    })
+    .boxed(),
+  )
 }

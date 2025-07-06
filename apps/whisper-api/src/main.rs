@@ -20,16 +20,16 @@ use crate::{
 
 mod api;
 mod audio_manager;
+mod huggingface;
 mod router;
 mod vad;
 mod whisper;
-mod huggingface;
-
 
 // Application state with dynamic model loading
 struct AppState {
   vad:            Arc<Mutex<VADProcessor>>,
   device:         Device,
+  vad_enabled:    bool,
   // Use RwLock for read-heavy workload (checking cache)
   whisper_models: Arc<RwLock<HashMap<String, Arc<Mutex<WhisperProcessor>>>>>,
 }
@@ -50,13 +50,22 @@ impl AppState {
 
     println!("🚀 Using device: {device:?}");
 
-    // Get VAD threshold from environment or use default
+    // Check if VAD is enabled
+    let vad_enabled = std::env::var("DISABLE_VAD")
+      .map(|s| s.to_lowercase() != "true" && s != "1")
+      .unwrap_or(true);
+
+    println!("🎯 VAD enabled: {vad_enabled}");
+
+    // Get VAD threshold from environment or use default (lowered for better detection)
     let vad_threshold = std::env::var("VAD_THRESHOLD")
       .ok()
       .and_then(|s| s.parse().ok())
-      .unwrap_or(0.3);
+      .unwrap_or(0.15);
 
-    println!("🎯 VAD threshold: {vad_threshold}");
+    if vad_enabled {
+      println!("🎯 VAD threshold: {vad_threshold}");
+    }
 
     // Initialize VAD processor (always use CPU for VAD)
     let vad = VADProcessor::new(candle_core::Device::Cpu, vad_threshold)?;
@@ -64,6 +73,7 @@ impl AppState {
     Ok(Self {
       vad: Arc::new(Mutex::new(vad)),
       device,
+      vad_enabled,
       whisper_models: Arc::new(RwLock::new(HashMap::new())),
     })
   }

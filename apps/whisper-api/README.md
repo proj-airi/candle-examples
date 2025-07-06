@@ -90,6 +90,12 @@ export RUST_LOG=debug
 
 # Force CPU usage
 export CANDLE_FORCE_CPU=1
+
+# Disable VAD (Voice Activity Detection) - process entire audio directly
+export DISABLE_VAD=true
+
+# Set VAD threshold (0.0-1.0, default: 0.15)
+export VAD_THRESHOLD=0.2
 ```
 
 ## Acknowledgements
