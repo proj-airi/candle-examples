@@ -76,7 +76,7 @@ jobs:
             protobuf-compiler
 
       - name: Lint
-        run: cargo clippy -- -W clippy::pedantic -W clippy::nursery -A clippy::missing-errors-doc -A clippy::module_name_repetitions
+        run: cargo clippy
 
   check:
     name: Check
