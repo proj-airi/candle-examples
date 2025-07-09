@@ -35,7 +35,7 @@ impl WhisperProcessor {
   pub fn process(
     &self,
     audio: &[f32],
-  ) -> Result<Array2<f32>> {
+  ) -> Array2<f32> {
     // 1. Pad or truncate the audio to 30 seconds
     let mut pcm_data = audio.to_vec();
     if pcm_data.len() < N_SAMPLES {
@@ -46,22 +46,21 @@ impl WhisperProcessor {
     let pcm_data = Array1::from_vec(pcm_data);
 
     // 2. Compute the Short-Time Fourier Transform (STFT)
-    let stft = self.stft(&pcm_data)?;
+    let stft = self.stft(&pcm_data);
 
     // 3. Apply the mel filter bank
     let mel_spectrogram = self.mel_filters.dot(&stft);
 
     // 4. Apply logarithmic scaling
-    let log_spec = self.log_mel_spectrogram(mel_spectrogram);
 
-    Ok(log_spec)
+    self.log_mel_spectrogram(&mel_spectrogram)
   }
 
   /// Computes the Short-Time Fourier Transform (STFT) of the input audio.
   fn stft(
     &self,
     pcm_data: &Array1<f32>,
-  ) -> Result<Array2<f32>> {
+  ) -> Array2<f32> {
     // Create a Hann window
     let window: Array1<f32> = Array1::from_shape_fn(N_FFT, |i| 0.5 * (1.0 - (2.0 * std::f32::consts::PI * i as f32 / N_FFT as f32).cos()));
 
@@ -104,18 +103,18 @@ impl WhisperProcessor {
       fft.process(&mut buffer);
 
       // Compute magnitude and store it
-      for j in 0..(N_FFT / 2 + 1) {
+      for j in 0..=(N_FFT / 2) {
         stft_result[[j, i]] = buffer[j].norm_sqr().sqrt();
       }
     }
 
-    Ok(stft_result)
+    stft_result
   }
 
   /// Converts a mel spectrogram to a log-scaled mel spectrogram.
   fn log_mel_spectrogram(
     &self,
-    mel_spec: Array2<f32>,
+    mel_spec: &Array2<f32>,
   ) -> Array2<f32> {
     let mut log_spec = mel_spec.mapv(|x| x.max(1e-10).log10());
     log_spec = log_spec.mapv(|x| x.max(log_spec.fold(f32::NEG_INFINITY, |acc, &v| acc.max(v)) - 8.0));

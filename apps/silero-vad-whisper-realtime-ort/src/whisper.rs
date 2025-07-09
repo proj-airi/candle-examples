@@ -3,7 +3,6 @@ use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 use anyhow::{Result, anyhow};
 use clap::ValueEnum;
 use hf_hub::api::sync::Api;
-use lazy_static::lazy_static;
 use ndarray::{Array2, ArrayView3, Axis, s};
 use ort::{
   execution_providers::{CPUExecutionProvider, CUDAExecutionProvider, CoreMLExecutionProvider, DirectMLExecutionProvider},
@@ -16,7 +15,7 @@ use tokenizers::Tokenizer;
 use crate::whisper_processor::WhisperProcessor;
 
 // Helper function to provide a default value of true for serde
-fn default_true() -> bool {
+const fn default_true() -> bool {
   true
 }
 
@@ -53,130 +52,128 @@ impl Default for GenerationConfig {
   }
 }
 
-// --- lazy_static blocks and whisper_language_to_code remain the same ---
-lazy_static! {
-  static ref WHISPER_LANGUAGES: HashMap<&'static str, &'static str> = {
-    let mut m = HashMap::new();
-    m.insert("en", "english");
-    m.insert("zh", "chinese");
-    m.insert("de", "german");
-    m.insert("es", "spanish");
-    m.insert("ru", "russian");
-    m.insert("ko", "korean");
-    m.insert("fr", "french");
-    m.insert("ja", "japanese");
-    m.insert("pt", "portuguese");
-    m.insert("tr", "turkish");
-    m.insert("pl", "polish");
-    m.insert("ca", "catalan");
-    m.insert("nl", "dutch");
-    m.insert("ar", "arabic");
-    m.insert("sv", "swedish");
-    m.insert("it", "italian");
-    m.insert("id", "indonesian");
-    m.insert("hi", "hindi");
-    m.insert("fi", "finnish");
-    m.insert("vi", "vietnamese");
-    m.insert("he", "hebrew");
-    m.insert("uk", "ukrainian");
-    m.insert("el", "greek");
-    m.insert("ms", "malay");
-    m.insert("cs", "czech");
-    m.insert("ro", "romanian");
-    m.insert("da", "danish");
-    m.insert("hu", "hungarian");
-    m.insert("ta", "tamil");
-    m.insert("no", "norwegian");
-    m.insert("th", "thai");
-    m.insert("ur", "urdu");
-    m.insert("hr", "croatian");
-    m.insert("bg", "bulgarian");
-    m.insert("lt", "lithuanian");
-    m.insert("la", "latin");
-    m.insert("mi", "maori");
-    m.insert("ml", "malayalam");
-    m.insert("cy", "welsh");
-    m.insert("sk", "slovak");
-    m.insert("te", "telugu");
-    m.insert("fa", "persian");
-    m.insert("lv", "latvian");
-    m.insert("bn", "bengali");
-    m.insert("sr", "serbian");
-    m.insert("az", "azerbaijani");
-    m.insert("sl", "slovenian");
-    m.insert("kn", "kannada");
-    m.insert("et", "estonian");
-    m.insert("mk", "macedonian");
-    m.insert("br", "breton");
-    m.insert("eu", "basque");
-    m.insert("is", "icelandic");
-    m.insert("hy", "armenian");
-    m.insert("ne", "nepali");
-    m.insert("mn", "mongolian");
-    m.insert("bs", "bosnian");
-    m.insert("kk", "kazakh");
-    m.insert("sq", "albanian");
-    m.insert("sw", "swahili");
-    m.insert("gl", "galician");
-    m.insert("mr", "marathi");
-    m.insert("pa", "punjabi");
-    m.insert("si", "sinhala");
-    m.insert("km", "khmer");
-    m.insert("sn", "shona");
-    m.insert("yo", "yoruba");
-    m.insert("so", "somali");
-    m.insert("af", "afrikaans");
-    m.insert("oc", "occitan");
-    m.insert("ka", "georgian");
-    m.insert("be", "belarusian");
-    m.insert("tg", "tajik");
-    m.insert("sd", "sindhi");
-    m.insert("gu", "gujarati");
-    m.insert("am", "amharic");
-    m.insert("yi", "yiddish");
-    m.insert("lo", "lao");
-    m.insert("uz", "uzbek");
-    m.insert("fo", "faroese");
-    m.insert("ht", "haitian creole");
-    m.insert("ps", "pashto");
-    m.insert("tk", "turkmen");
-    m.insert("nn", "nynorsk");
-    m.insert("mt", "maltese");
-    m.insert("sa", "sanskrit");
-    m.insert("lb", "luxembourgish");
-    m.insert("my", "myanmar");
-    m.insert("bo", "tibetan");
-    m.insert("tl", "tagalog");
-    m.insert("mg", "malagasy");
-    m.insert("as", "assamese");
-    m.insert("tt", "tatar");
-    m.insert("haw", "hawaiian");
-    m.insert("ln", "lingala");
-    m.insert("ha", "hausa");
-    m.insert("ba", "bashkir");
-    m.insert("jw", "javanese");
-    m.insert("su", "sundanese");
-    m
-  };
-  static ref WHISPER_TO_LANGUAGE_CODE: HashMap<&'static str, &'static str> = {
-    let mut m: HashMap<&'static str, &'static str> = WHISPER_LANGUAGES
-      .iter()
-      .map(|(k, v)| (*v, *k))
-      .collect();
-    m.insert("burmese", "my");
-    m.insert("valencian", "ca");
-    m.insert("flemish", "nl");
-    m.insert("haitian", "ht");
-    m.insert("letzeburgesch", "lb");
-    m.insert("pushto", "ps");
-    m.insert("panjabi", "pa");
-    m.insert("moldavian", "ro");
-    m.insert("moldovan", "ro");
-    m.insert("sinhalese", "si");
-    m.insert("castilian", "es");
-    m
-  };
-}
+static WHISPER_LANGUAGES: std::sync::LazyLock<HashMap<&'static str, &'static str>> = std::sync::LazyLock::new(|| {
+  let mut m = HashMap::new();
+  m.insert("en", "english");
+  m.insert("zh", "chinese");
+  m.insert("de", "german");
+  m.insert("es", "spanish");
+  m.insert("ru", "russian");
+  m.insert("ko", "korean");
+  m.insert("fr", "french");
+  m.insert("ja", "japanese");
+  m.insert("pt", "portuguese");
+  m.insert("tr", "turkish");
+  m.insert("pl", "polish");
+  m.insert("ca", "catalan");
+  m.insert("nl", "dutch");
+  m.insert("ar", "arabic");
+  m.insert("sv", "swedish");
+  m.insert("it", "italian");
+  m.insert("id", "indonesian");
+  m.insert("hi", "hindi");
+  m.insert("fi", "finnish");
+  m.insert("vi", "vietnamese");
+  m.insert("he", "hebrew");
+  m.insert("uk", "ukrainian");
+  m.insert("el", "greek");
+  m.insert("ms", "malay");
+  m.insert("cs", "czech");
+  m.insert("ro", "romanian");
+  m.insert("da", "danish");
+  m.insert("hu", "hungarian");
+  m.insert("ta", "tamil");
+  m.insert("no", "norwegian");
+  m.insert("th", "thai");
+  m.insert("ur", "urdu");
+  m.insert("hr", "croatian");
+  m.insert("bg", "bulgarian");
+  m.insert("lt", "lithuanian");
+  m.insert("la", "latin");
+  m.insert("mi", "maori");
+  m.insert("ml", "malayalam");
+  m.insert("cy", "welsh");
+  m.insert("sk", "slovak");
+  m.insert("te", "telugu");
+  m.insert("fa", "persian");
+  m.insert("lv", "latvian");
+  m.insert("bn", "bengali");
+  m.insert("sr", "serbian");
+  m.insert("az", "azerbaijani");
+  m.insert("sl", "slovenian");
+  m.insert("kn", "kannada");
+  m.insert("et", "estonian");
+  m.insert("mk", "macedonian");
+  m.insert("br", "breton");
+  m.insert("eu", "basque");
+  m.insert("is", "icelandic");
+  m.insert("hy", "armenian");
+  m.insert("ne", "nepali");
+  m.insert("mn", "mongolian");
+  m.insert("bs", "bosnian");
+  m.insert("kk", "kazakh");
+  m.insert("sq", "albanian");
+  m.insert("sw", "swahili");
+  m.insert("gl", "galician");
+  m.insert("mr", "marathi");
+  m.insert("pa", "punjabi");
+  m.insert("si", "sinhala");
+  m.insert("km", "khmer");
+  m.insert("sn", "shona");
+  m.insert("yo", "yoruba");
+  m.insert("so", "somali");
+  m.insert("af", "afrikaans");
+  m.insert("oc", "occitan");
+  m.insert("ka", "georgian");
+  m.insert("be", "belarusian");
+  m.insert("tg", "tajik");
+  m.insert("sd", "sindhi");
+  m.insert("gu", "gujarati");
+  m.insert("am", "amharic");
+  m.insert("yi", "yiddish");
+  m.insert("lo", "lao");
+  m.insert("uz", "uzbek");
+  m.insert("fo", "faroese");
+  m.insert("ht", "haitian creole");
+  m.insert("ps", "pashto");
+  m.insert("tk", "turkmen");
+  m.insert("nn", "nynorsk");
+  m.insert("mt", "maltese");
+  m.insert("sa", "sanskrit");
+  m.insert("lb", "luxembourgish");
+  m.insert("my", "myanmar");
+  m.insert("bo", "tibetan");
+  m.insert("tl", "tagalog");
+  m.insert("mg", "malagasy");
+  m.insert("as", "assamese");
+  m.insert("tt", "tatar");
+  m.insert("haw", "hawaiian");
+  m.insert("ln", "lingala");
+  m.insert("ha", "hausa");
+  m.insert("ba", "bashkir");
+  m.insert("jw", "javanese");
+  m.insert("su", "sundanese");
+  m
+});
+
+static WHISPER_TO_LANGUAGE_CODE: std::sync::LazyLock<HashMap<&'static str, &'static str>> = std::sync::LazyLock::new(|| {
+  let mut m: HashMap<&'static str, &'static str> = WHISPER_LANGUAGES
+    .iter()
+    .map(|(k, v)| (*v, *k))
+    .collect();
+  m.insert("burmese", "my");
+  m.insert("valencian", "ca");
+  m.insert("flemish", "nl");
+  m.insert("haitian", "ht");
+  m.insert("letzeburgesch", "lb");
+  m.insert("pushto", "ps");
+  m.insert("panjabi", "pa");
+  m.insert("moldavian", "ro");
+  m.insert("moldovan", "ro");
+  m.insert("sinhalese", "si");
+  m.insert("castilian", "es");
+  m
+});
 
 pub fn whisper_language_to_code(language: &str) -> Result<String> {
   let lower_lang = language.to_lowercase();
@@ -230,11 +227,6 @@ impl Whisper {
       None => repo.download(tokenizer_config_path_sub_name)?,
     };
 
-    println!("encoder_model_path: {:?}", encoder_model_path);
-    println!("decoder_model_path: {:?}", decoder_model_path);
-    println!("config_path: {:?}", config_path);
-    println!("tokenizer_config_path: {:?}", tokenizer_config_path);
-
     let encoder_session = Self::create_optimized_session(encoder_model_path)?;
     let decoder_session = Self::create_optimized_session(decoder_model_path)?;
 
@@ -278,7 +270,7 @@ impl Whisper {
     Ok(session)
   }
 
-  fn _retrieve_init_tokens(
+  fn retrieve_init_tokens(
     &self,
     gen_config: &GenerationConfig,
   ) -> Result<Vec<i64>> {
@@ -292,7 +284,7 @@ impl Whisper {
     if self.config.is_multilingual {
       let lang = gen_config.language.as_deref().unwrap_or("en");
       let lang_code = whisper_language_to_code(lang)?;
-      let lang_token = format!("<|{}|>", lang_code);
+      let lang_token = format!("<|{lang_code}|>");
       let lang_token_id = self
         .config
         .lang_to_id
@@ -302,10 +294,10 @@ impl Whisper {
     }
     init_tokens.push(task_id);
 
-    if !gen_config.return_timestamps {
-      if let Some(no_timestamps_id) = self.config.no_timestamps_token_id {
-        init_tokens.push(no_timestamps_id);
-      }
+    if !gen_config.return_timestamps
+      && let Some(no_timestamps_id) = self.config.no_timestamps_token_id
+    {
+      init_tokens.push(no_timestamps_id);
     }
     Ok(init_tokens)
   }
@@ -316,13 +308,13 @@ impl Whisper {
     gen_config: &GenerationConfig,
   ) -> Result<Vec<i64>> {
     let (batch_size, num_mel_bins, sequence_length) = input_features.dim();
-    let expected_mel_bins = self.config.num_mel_bins as usize;
+    let expected_mel_bins = usize::try_from(self.config.num_mel_bins)?;
 
     if batch_size != 1 || num_mel_bins != expected_mel_bins {
       return Err(anyhow!("Incorrect input feature shape. Expected [1, {}, ...], but got [{}, {}, {}]", expected_mel_bins, batch_size, num_mel_bins, sequence_length));
     }
 
-    let mut decoder_input_ids = self._retrieve_init_tokens(gen_config)?;
+    let mut decoder_input_ids = self.retrieve_init_tokens(gen_config)?;
 
     let owned_input = input_features.to_owned();
     let inputs = vec![("input_features", Value::from_array(owned_input)?)];
@@ -339,17 +331,17 @@ impl Whisper {
     //   .collect();
 
     for _step in 0..gen_config.max_new_tokens {
-      let decoder_input_ids_array = Array2::from_shape_vec((1, decoder_input_ids.len()), decoder_input_ids.clone())?.mapv(|x| x as i64);
+      let decoder_input_ids_array = Array2::from_shape_vec((1, decoder_input_ids.len()), decoder_input_ids.clone())?.mapv(|x| x);
 
       // KV Cache
       // let mut decoder_inputs: Vec<(Cow<'_, str>, SessionInputValue<'_>)> = Vec::with_capacity(2 + past_key_values.len());
 
-      let mut decoder_inputs: Vec<(Cow<'_, str>, SessionInputValue<'_>)> = Vec::with_capacity(2);
-
-      // name = encoder_hidden_states, type = tensor: float32[batch_size,encoder_sequence_length / 2,512]
-      decoder_inputs.push(("encoder_hidden_states".into(), encoder_hidden_states.into()));
-      // name = input_ids, type = tensor: int64[batch_size,decoder_sequence_length]
-      decoder_inputs.push(("input_ids".into(), Value::from_array(decoder_input_ids_array)?.into()));
+      let decoder_inputs: Vec<(Cow<'_, str>, SessionInputValue<'_>)> = vec![
+        // name = encoder_hidden_states, type = tensor: float32[batch_size,encoder_sequence_length / 2,512]
+        ("encoder_hidden_states".into(), encoder_hidden_states.into()),
+        // name = input_ids, type = tensor: int64[batch_size,decoder_sequence_length]
+        ("input_ids".into(), Value::from_array(decoder_input_ids_array)?.into()),
+      ];
 
       let decoder_outputs = self.decoder_session.run(decoder_inputs)?;
       let logits_ref = decoder_outputs.get("logits").unwrap().view();
@@ -360,7 +352,7 @@ impl Whisper {
         .iter()
         .enumerate()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-        .map(|(index, _)| index as i64)
+        .map(|(index, _)| i64::try_from(index).unwrap())
         .unwrap();
 
       if next_token == self.config.eos_token_id {
@@ -430,7 +422,7 @@ impl WhisperPipeline {
     gen_config: &GenerationConfig,
   ) -> Result<String> {
     // 1. Process the raw audio into a mel spectrogram with the correct shape [80, 3000] for normal, and [128, 3000] for large-v3
-    let input_features = self.processor.process(audio)?;
+    let input_features = self.processor.process(audio);
 
     // 2. Add the batch dimension, making the shape [1, 80, 3000] for normal, and [1, 128, 3000] for large-v3
     let input_features = input_features.insert_axis(Axis(0));
@@ -443,7 +435,7 @@ impl WhisperPipeline {
     // The rest of the function remains the same...
     let generated_tokens_u32: Vec<u32> = generated_tokens
       .iter()
-      .map(|&x| x as u32)
+      .map(|&x| u32::try_from(x).unwrap())
       .collect();
 
     let transcript = self

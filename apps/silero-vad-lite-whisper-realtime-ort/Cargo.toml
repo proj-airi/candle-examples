@@ -21,7 +21,6 @@ crossbeam-channel = "0.5.15"
 tokenizers = "0.21.2"
 ndarray = "0.16.1"
 serde = { version = "1.0.219", features = ["derive"] }
-lazy_static = "1.5.0"
 rustfft = "6.4.0"
 ndarray-stats = "0.6.0"
 log = "0.4.27"
@@ -34,3 +33,6 @@ ort = { version = "2.0.0-rc.10", features = ["ndarray", "directml", "cuda"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 ort = { version = "2.0.0-rc.10", features = ["ndarray", "cuda"] }
+
+[lints]
+workspace = true

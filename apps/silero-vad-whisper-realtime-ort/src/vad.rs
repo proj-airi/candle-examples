@@ -45,7 +45,7 @@ impl SileroVADModel {
       None => repo.download(model_path_sub_name)?,
     };
 
-    let session = Self::create_optimized_session(model_path.clone())?;
+    let session = Self::create_optimized_session(model_path)?;
 
     Ok(Self { session: Arc::new(Mutex::new(session)) })
   }
@@ -75,17 +75,18 @@ impl SileroVADModel {
 
   /// Stateless inference that matches JavaScript interface
   /// Returns both output and updated state like the JS version
+  #[allow(clippy::significant_drop_tightening)]
   pub fn inference(
     &self,
     input_data: SileroVADInput,
   ) -> Result<SileroVADResult> {
     // Validate input dimensions
-    if input_data.state.len() != 2 * 1 * 128 {
+    if input_data.state.len() != 2 * 128 {
       return Err(anyhow::anyhow!("State must have 256 elements (2*1*128), got {}", input_data.state.len()));
     }
 
     // Create input tensors for the ONNX model
-    let inputs = vec![("input", Tensor::from_array((vec![1, input_data.input.len()], input_data.input.clone()))?.into_dyn()), ("sr", Tensor::from_array(([1], vec![input_data.sr]))?.into_dyn()), ("state", Tensor::from_array((vec![2, 1, 128], input_data.state.clone()))?.into_dyn())];
+    let inputs = vec![("input", Tensor::from_array((vec![1, input_data.input.len()], input_data.input.clone()))?.into_dyn()), ("sr", Tensor::from_array(([1], vec![input_data.sr]))?.into_dyn()), ("state", Tensor::from_array((vec![2, 1, 128], input_data.state))?.into_dyn())];
 
     // Run inference and extract data while session is still locked
     let (state_data, speech_data) = {
@@ -127,7 +128,7 @@ impl SileroVADPipeline {
   ) -> Result<Self> {
     let model = SileroVADModel::new()?;
     // The initial state for the Silero VAD model is a tensor of shape (2, 1, 128) filled with zeros.
-    let state = vec![0.0; 2 * 1 * 128];
+    let state = vec![0.0; 2 * 128];
     Ok(Self { model, state, sample_rate: i64::from(sample_rate), threshold })
   }
 

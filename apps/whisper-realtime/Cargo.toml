@@ -37,3 +37,6 @@ cuda = [
 onnx = [
     "candle-onnx",
 ]
+
+[lints]
+workspace = true

@@ -29,3 +29,6 @@ cuda = [
     "candle-nn/cuda",
     "candle-transformers/cuda"
 ]
+
+[lints]
+workspace = true

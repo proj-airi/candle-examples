@@ -24,3 +24,6 @@ tracing-subscriber = "0.3.19"
 default = []
 cuda = []
 metal = []
+
+[lints]
+workspace = true

@@ -1,7 +1,7 @@
 use std::{
   fs::File,
   io::Write,
-  path::PathBuf,
+  path::{Path, PathBuf},
   str::FromStr,
   time::{Duration, Instant},
 };
@@ -92,7 +92,7 @@ async fn main() -> Result<()> {
 
 fn save_audio_chunk_to_file(
   chunk: &[f32],
-  output_dir: PathBuf,
+  output_dir: &Path,
   sample_rate: u32,
 ) -> Result<PathBuf, String> {
   let timestamp = std::time::SystemTime::now()
@@ -100,11 +100,11 @@ fn save_audio_chunk_to_file(
     .unwrap()
     .as_millis();
 
-  let filename = format!("silero-vad-whisper-realtime_audio-chunk_{}.wav", timestamp);
+  let filename = format!("silero-vad-whisper-realtime_audio-chunk_{timestamp}.wav");
   let filepath = output_dir.join(&filename);
 
   // Write as WAV file for easier debugging
-  write_wav_file(&filepath, chunk, sample_rate).map_err(|e| format!("Failed to write audio file: {}", e))?;
+  write_wav_file(&filepath, chunk, sample_rate).map_err(|e| format!("Failed to write audio file: {e}"))?;
 
   info!("Saved audio chunk to: {:?}", filepath);
   Ok(filepath)
@@ -117,12 +117,12 @@ fn write_wav_file(
 ) -> Result<(), Box<dyn std::error::Error>> {
   let mut file = File::create(filepath)?;
 
-  let num_samples = samples.len() as u32;
+  let num_samples = u32::try_from(samples.len()).unwrap();
   let num_channels = 1u16; // Mono
   let bits_per_sample = 16u16;
-  let byte_rate = sample_rate * num_channels as u32 * bits_per_sample as u32 / 8;
+  let byte_rate = sample_rate * u32::from(num_channels) * u32::from(bits_per_sample) / 8;
   let block_align = num_channels * bits_per_sample / 8;
-  let data_size = num_samples * bits_per_sample as u32 / 8;
+  let data_size = num_samples * u32::from(bits_per_sample) / 8;
   let file_size = 36 + data_size;
 
   // WAV header
@@ -170,27 +170,30 @@ async fn process_audio_chunk(
     let speech_prob = vad.process_chunk(&frame)?;
     let is_speech = vad.is_speech(speech_prob);
 
-    if let Some(complete_audio) = audio_buffer.add_chunk(&frame, is_speech) {
-      if let Some(ref output_dir) = PathBuf::from_str("./audio_chunks").ok() {
-        if !output_dir.exists() {
-          std::fs::create_dir_all(output_dir).map_err(|e| anyhow::anyhow!("Failed to create output directory: {}", e))?;
-        }
-
-        let pwd = std::env::current_dir().map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
-        info!("Saving audio chunk for debugging... {}", pwd.display());
-        let sr = 16000; // Default sample rate
-        match save_audio_chunk_to_file(complete_audio.clone().as_slice(), pwd.join(output_dir), sr) {
-          Ok(filepath) => {
-            info!("Audio chunk saved for debugging: {:?}", filepath);
-          },
-          Err(e) => {
-            warn!("Failed to save audio chunk for debugging: {}", e);
-          },
-        }
-      }
-
-      transcribe_audio(whisper, complete_audio, sample_rate).await?;
+    let complete_audio = audio_buffer.add_chunk(&frame, is_speech);
+    if complete_audio.is_none() {
+      continue; // No complete utterance ready
     }
+
+    let complete_audio = complete_audio.unwrap();
+    let Ok(ref output_dir) = PathBuf::from_str("./audio_chunks");
+    if !output_dir.exists() {
+      std::fs::create_dir_all(output_dir).map_err(|e| anyhow::anyhow!("Failed to create output directory: {}", e))?;
+    }
+
+    let pwd = std::env::current_dir().map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
+    info!("Saving audio chunk for debugging... {}", pwd.display());
+    let sr = 16000; // Default sample rate
+    match save_audio_chunk_to_file(complete_audio.clone().as_slice(), &pwd.join(output_dir), sr) {
+      Ok(filepath) => {
+        info!("Audio chunk saved for debugging: {:?}", filepath);
+      },
+      Err(e) => {
+        warn!("Failed to save audio chunk for debugging: {}", e);
+      },
+    }
+
+    transcribe_audio(whisper, complete_audio, sample_rate).await?;
   }
 
   Ok(())

@@ -79,10 +79,10 @@ async fn process_audio_chunk(
   chunk: Vec<f32>,
   sample_rate: u32,
 ) -> Result<()> {
-  frame_buffer.extend_from_slice(&chunk);
-
   // Silero VAD works with specific frame sizes. 512 is a good choice for 16kHz audio.
   const VAD_FRAME_SIZE: usize = 512;
+
+  frame_buffer.extend_from_slice(&chunk);
 
   while frame_buffer.len() >= VAD_FRAME_SIZE {
     let frame: Vec<f32> = frame_buffer.drain(..VAD_FRAME_SIZE).collect();
@@ -92,14 +92,14 @@ async fn process_audio_chunk(
     let is_speech = vad.is_speech(speech_prob);
 
     // Add the frame to the audio buffer and check if a full utterance is ready
-    if let Some(complete_audio) = audio_buffer.add_chunk(&frame, is_speech) {
-      if !complete_audio.is_empty() {
-        // For debugging, you can save the audio chunk
-        // ... (your save_audio_chunk_to_file logic can go here)
+    if let Some(complete_audio) = audio_buffer.add_chunk(&frame, is_speech)
+      && !complete_audio.is_empty()
+    {
+      // For debugging, you can save the audio chunk
+      // ... (your save_audio_chunk_to_file logic can go here)
 
-        // Transcribe the complete audio utterance
-        transcribe_audio(whisper, complete_audio, sample_rate).await?;
-      }
+      // Transcribe the complete audio utterance
+      transcribe_audio(whisper, complete_audio, sample_rate).await?;
     }
   }
 
