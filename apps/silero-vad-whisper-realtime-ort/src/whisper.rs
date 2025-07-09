@@ -6,12 +6,7 @@ use hf_hub::api::sync::Api;
 use lazy_static::lazy_static;
 use ndarray::{Array2, ArrayView3, Axis, s};
 use ort::{
-  execution_providers::{
-    CPUExecutionProvider,
-    CUDAExecutionProvider,
-    // CoreMLExecutionProvider,
-    DirectMLExecutionProvider,
-  },
+  execution_providers::{CPUExecutionProvider, CUDAExecutionProvider, CoreMLExecutionProvider, DirectMLExecutionProvider},
   session::{Session, SessionInputValue, builder::GraphOptimizationLevel},
   value::Value,
 };
@@ -194,13 +189,13 @@ pub fn whisper_language_to_code(language: &str) -> Result<String> {
   Err(anyhow!("Language '{}' is not supported.", language))
 }
 
-pub struct LiteWhisper {
+pub struct Whisper {
   encoder_session: Session,
   decoder_session: Session,
   config:          WhisperConfig,
 }
 
-impl LiteWhisper {
+impl Whisper {
   pub fn new(
     model_id: &str,
     revision: &str,
@@ -217,7 +212,7 @@ impl LiteWhisper {
       None => repo.download(encoder_model_path_sub_name)?,
     };
 
-    let decoder_model_path_sub_name = "onnx/decoder_model_merged.onnx";
+    let decoder_model_path_sub_name = "onnx/decoder_model.onnx";
     let decoder_model_path = match cache_repo.get(decoder_model_path_sub_name) {
       Some(path) => path,
       None => repo.download(decoder_model_path_sub_name)?,
@@ -273,9 +268,7 @@ impl LiteWhisper {
         CUDAExecutionProvider::default()
           .with_device_id(0)
           .build(),
-        // 2025-07-09 14:14:44.231707 [E:onnxruntime:, sequential_executor.cc:572 ExecuteKernel] Non-zero status code returned while running 3843266348432971732_CoreML_3843266348432971732_0 node. Name:'CoreMLExecutionProvider_3843266348432971732_CoreML_3843266348432971732_0_0' Status Message: Error executing model: Unable to compute the prediction using a neural network model. It can be an invalid input data or broken/unsupported model (error code: -1).
-        // Error: Non-zero status code returned while running 3360655929800718712_CoreML_3360655929800718712_0 node. Name:'CoreMLExecutionProvider_3360655929800718712_CoreML_3360655929800718712_0_0' Status Message: Error executing model: Unable to compute the prediction using a neural network model. It can be an invalid input data or broken/unsupported model (error code: -1).
-        // CoreMLExecutionProvider::default().build(),
+        CoreMLExecutionProvider::default().build(),
         DirectMLExecutionProvider::default()
           .with_device_id(0)
           .build(),
@@ -353,13 +346,10 @@ impl LiteWhisper {
 
       let mut decoder_inputs: Vec<(Cow<'_, str>, SessionInputValue<'_>)> = Vec::with_capacity(2);
 
-      // name = encoder_hidden_states, type = tensor: float32[batch_size,encoder_sequence_length / 2,1280]
+      // name = encoder_hidden_states, type = tensor: float32[batch_size,encoder_sequence_length / 2,512]
       decoder_inputs.push(("encoder_hidden_states".into(), encoder_hidden_states.into()));
       // name = input_ids, type = tensor: int64[batch_size,decoder_sequence_length]
       decoder_inputs.push(("input_ids".into(), Value::from_array(decoder_input_ids_array)?.into()));
-      // name = use_cache_branch, type = tensor: boolean[1]
-      let use_cache_branch_tensor = ndarray::Array1::from(vec![false]);
-      decoder_inputs.push(("use_cache_branch".into(), Value::from_array(use_cache_branch_tensor)?.into()));
 
       let decoder_outputs = self.decoder_session.run(decoder_inputs)?;
       let logits_ref = decoder_outputs.get("logits").unwrap().view();
@@ -385,46 +375,46 @@ impl LiteWhisper {
   }
 }
 
-// --- WhichLiteWhisperModel enum and its impl remain the same ---
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
-pub enum WhichLiteWhisperModel {
+pub enum WhichModel {
+  Tiny,
+  Base,
+  Small,
+  Medium,
   LargeV3,
-  LargeV3Acc,
-  LargeV3Fast,
   LargeV3Turbo,
-  LargeV3TurboAcc,
-  LargeV3TurboFast,
 }
 
-impl WhichLiteWhisperModel {
+impl WhichModel {
   pub const fn model_and_revision(self) -> (&'static str, &'static str) {
     match self {
-      Self::LargeV3 => ("onnx-community/lite-whisper-large-v3-ONNX", "main"),
-      Self::LargeV3Acc => ("onnx-community/lite-whisper-large-v3-acc-ONNX", "main"),
-      Self::LargeV3Fast => ("onnx-community/lite-whisper-large-v3-fast-ONNX", "main"),
-      Self::LargeV3Turbo => ("onnx-community/lite-whisper-large-v3-turbo-ONNX", "main"),
-      Self::LargeV3TurboAcc => ("onnx-community/lite-whisper-large-v3-turbo-acc-ONNX", "main"),
-      Self::LargeV3TurboFast => ("onnx-community/lite-whisper-large-v3-turbo-fast-ONNX", "main"),
+      Self::Tiny => ("onnx-community/whisper-tiny-ONNX", "main"),
+      Self::Base => ("onnx-community/whisper-base-ONNX", "main"),
+      Self::Small => ("onnx-community/whisper-small-ONNX", "main"),
+      Self::Medium => ("onnx-community/whisper-medium-ONNX", "main"),
+      Self::LargeV3 => ("onnx-community/whisper-large-v3-ONNX", "main"),
+      Self::LargeV3Turbo => ("onnx-community/whisper-large-v3-turbo-ONNX", "main"),
     }
   }
 }
 
 /// A pipeline that encapsulates the full Whisper transcription process.
-pub struct LiteWhisperPipeline {
-  model:     LiteWhisper,
+pub struct WhisperPipeline {
+  model:     Whisper,
   processor: WhisperProcessor,
   tokenizer: Tokenizer,
 }
 
-impl LiteWhisperPipeline {
+impl WhisperPipeline {
   pub fn new(
+    which_model: WhichModel,
     model_id: &str,
     revision: &str,
   ) -> Result<Self> {
-    let model = LiteWhisper::new(model_id, revision)?;
+    let model = Whisper::new(model_id, revision)?;
 
     // Initialize our new processor
-    let processor = WhisperProcessor::new()?; // <-- This now works and loads the 128-bin filters
+    let processor = WhisperProcessor::new(which_model)?;
 
     let api = Api::new()?;
     let repo = api.repo(hf_hub::Repo::with_revision(model_id.to_string(), hf_hub::RepoType::Model, revision.to_string()));
@@ -439,10 +429,10 @@ impl LiteWhisperPipeline {
     audio: &[f32],
     gen_config: &GenerationConfig,
   ) -> Result<String> {
-    // 1. Process the raw audio into a mel spectrogram with the correct shape [128, 3000]
+    // 1. Process the raw audio into a mel spectrogram with the correct shape [80, 3000] for normal, and [128, 3000] for large-v3
     let input_features = self.processor.process(audio)?;
 
-    // 2. Add the batch dimension, making the shape [1, 128, 3000]
+    // 2. Add the batch dimension, making the shape [1, 80, 3000] for normal, and [1, 128, 3000] for large-v3
     let input_features = input_features.insert_axis(Axis(0));
 
     // 3. Generate tokens. This will now work without a shape error.

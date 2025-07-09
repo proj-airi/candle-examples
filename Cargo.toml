@@ -18,6 +18,7 @@ members = [
     "apps/silero-vad-realtime-minimum",
     "apps/silero-vad-whisper-realtime",
     "apps/silero-vad-lite-whisper-realtime-ort",
+    "apps/silero-vad-whisper-realtime-ort",
     "apps/whisper-api",
     "apps/whisper-realtime",
 ]

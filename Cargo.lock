@@ -3467,6 +3467,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "silero-vad-whisper-realtime-ort"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "clap",
+ "cpal",
+ "crossbeam-channel",
+ "hf-hub",
+ "lazy_static",
+ "log",
+ "ndarray",
+ "ndarray-stats",
+ "ort",
+ "rand 0.9.1",
+ "rubato",
+ "rustfft",
+ "serde",
+ "serde_json",
+ "symphonia",
+ "tokenizers",
+ "tokio",
+ "tracing",
+ "tracing-chrome",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
