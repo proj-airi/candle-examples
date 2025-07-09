@@ -31,6 +31,7 @@ jobs:
       # Failed to run custom build command · Issue #183 · Spotifyd/spotifyd
       # https://github.com/Spotifyd/spotifyd/issues/183#issuecomment-476384541
       - run: |
+          sudo apt update
           sudo apt install -y \
             libasound2-dev \
             portaudio19-dev \
@@ -62,6 +63,7 @@ jobs:
       # Failed to run custom build command · Issue #183 · Spotifyd/spotifyd
       # https://github.com/Spotifyd/spotifyd/issues/183#issuecomment-476384541
       - run: |
+          sudo apt update
           sudo apt install -y \
             libasound2-dev \
             portaudio19-dev \
@@ -92,6 +94,7 @@ jobs:
       # Failed to run custom build command · Issue #183 · Spotifyd/spotifyd
       # https://github.com/Spotifyd/spotifyd/issues/183#issuecomment-476384541
       - run: |
+          sudo apt update
           sudo apt install -y \
             libasound2-dev \
             portaudio19-dev \
