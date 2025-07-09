@@ -1,0 +1,3 @@
+[submodule "python/dependencies/librosa"]
+	path = python/dependencies/librosa
+	url = https://github.com/librosa/librosa

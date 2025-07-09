@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+import sys
+import os
+from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import RepositoryNotFoundError, EntryNotFoundError, LocalEntryNotFoundError
+
+def get_hf_file_path(model_id, file_path):
+    """
+    Retrieves the local cached path for a file from a Hugging Face Hub repository,
+    then resolves its symbolic link to the actual blob file.
+
+    Args:
+        model_id (str): The ID of the model repository (e.g., "onnx-community/whisper-large-v3-turbo").
+        file_path (str): The relative path to the file within the repository (e.g., "onnx/encoder_model.onnx").
+
+    Returns:
+        A string containing the absolute local path to the resolved blob file, or an error message.
+    """
+    try:
+        # Step 1: Use hf_hub_download to find the file in the cache.
+        # local_files_only=True ensures we don't trigger a download.
+        symlink_path = hf_hub_download(
+            repo_id=model_id,
+            filename=file_path,
+            local_files_only=True
+        )
+
+        # Step 2: Use os.path.realpath to resolve the symbolic link to the actual file path.
+        resolved_path = os.path.realpath(symlink_path)
+        return resolved_path
+
+    except LocalEntryNotFoundError:
+        return f"Error: File '{file_path}' not found in local cache for repo '{model_id}'. Try downloading it first."
+    except RepositoryNotFoundError:
+        return f"Error: Model repository '{model_id}' not found on the Hugging Face Hub."
+    except EntryNotFoundError:
+        # This error is less likely with local_files_only=True, but good to keep.
+        return f"Error: File '{file_path}' not found in the repository '{model_id}'."
+    except Exception as e:
+        return f"An unexpected error occurred: {e}"
+
+if __name__ == "__main__":
+    # Check for the correct number of command-line arguments.
+    if len(sys.argv) != 3:
+        print("Usage: hftf <model_id> <file_path>")
+        print("\nExample:")
+        print("  hftf onnx-community/whisper-large-v3-turbo onnx/encoder_model.onnx")
+        sys.exit(1)
+
+    repo_id = sys.argv[1]
+    filename = sys.argv[2]
+
+    # Get the path and print it to standard output.
+    final_path = get_hf_file_path(repo_id, filename)
+    print(final_path)
+
+    # Exit with an error code if the path starts with "Error:"
+    if final_path.startswith("Error:"):
+        sys.exit(1)

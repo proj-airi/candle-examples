@@ -6,7 +6,9 @@ words:
   - AIRI
   - byteorder
   - clippy
+  - coreml
   - cuda
+  - directml
   - distil
   - dtolnay
   - DTYPE
@@ -16,6 +18,7 @@ words:
   - logprob
   - melfilters
   - mmaped
+  - ndarray
   - onnx
   - probs
   - Resampler
