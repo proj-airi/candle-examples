@@ -65,7 +65,6 @@ impl WhisperProcessor {
     let mel_spectrogram = self.mel_filters.dot(&stft);
 
     // 4. Apply logarithmic scaling
-    
 
     self.log_mel_spectrogram(&mel_spectrogram)
   }
