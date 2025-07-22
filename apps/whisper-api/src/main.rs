@@ -117,7 +117,10 @@ impl AppState {
       "large-v3-turbo" => Ok(WhichWhisperModel::LargeV3Turbo),
       "distil-medium.en" => Ok(WhichWhisperModel::DistilMediumEn),
       "distil-large-v2" => Ok(WhichWhisperModel::DistilLargeV2),
-      _ => anyhow::bail!("Unsupported Whisper model: {}. Supported models: tiny, base, small, medium, large, large-v2, large-v3", model_name),
+      "lite-whisper-large-v3-turbo" => Ok(WhichWhisperModel::LiteWhisperLargeV3Turbo),
+      "lite-whisper-large-v3-turbo-acc" => Ok(WhichWhisperModel::LiteWhisperLargeV3TurboAcc),
+      "lite-whisper-large-v3-turbo-fast" => Ok(WhichWhisperModel::LiteWhisperLargeV3TurboFast),
+      _ => anyhow::bail!("Unsupported Whisper model: {}. Supported models: tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo, distill-medium.en, distil-large-v2, lite-whisper-large-v3-turbo, lite-whisper-large-v3-turbo-acc, lite-whisper-large-v3-turbo-fast", model_name),
     }
   }
 }

@@ -67,6 +67,12 @@ pub enum WhichWhisperModel {
   DistilMediumEn,
   #[value(name = "distil-large-v2")]
   DistilLargeV2,
+  #[value(name = "lite-whisper-large-v3-turbo")]
+  LiteWhisperLargeV3Turbo,
+  #[value(name = "lite-whisper-large-v3-turbo-acc")]
+  LiteWhisperLargeV3TurboAcc,
+  #[value(name = "lite-whisper-large-v3-turbo-fast")]
+  LiteWhisperLargeV3TurboFast,
 }
 
 impl WhichWhisperModel {
@@ -86,6 +92,9 @@ impl WhichWhisperModel {
       Self::LargeV3Turbo => ("openai/whisper-large-v3-turbo", "main"),
       Self::DistilMediumEn => ("distil-whisper/distil-medium.en", "main"),
       Self::DistilLargeV2 => ("distil-whisper/distil-large-v2", "main"),
+      Self::LiteWhisperLargeV3Turbo => ("efficient-speech/lite-whisper-large-v3-turbo", "main"),
+      Self::LiteWhisperLargeV3TurboAcc => ("efficient-speech/lite-whisper-large-v3-turbo-acc", "main"),
+      Self::LiteWhisperLargeV3TurboFast => ("efficient-speech/lite-whisper-large-v3-turbo-fast", "main"),
     }
   }
 }
@@ -107,9 +116,16 @@ impl WhisperProcessor {
     let api = huggingface::create_hf_api()?;
     let (model_id, revision) = model.model_and_revision();
     let repo = api.repo(Repo::with_revision(model_id.to_string(), RepoType::Model, revision.to_string()));
+    let (openai_large_v3_model_id, openai_large_v3_repo) = WhichWhisperModel::LargeV3.model_and_revision();
+    let openai_large_v3_repo = api.repo(Repo::with_revision(openai_large_v3_model_id.to_string(), RepoType::Model, openai_large_v3_repo.to_string()));
 
     let config_filename = repo.get("config.json")?;
-    let tokenizer_filename = repo.get("tokenizer.json")?;
+    let tokenizer_filename = match model {
+      WhichWhisperModel::LiteWhisperLargeV3Turbo => openai_large_v3_repo.get("tokenizer.json")?,
+      WhichWhisperModel::LiteWhisperLargeV3TurboAcc => openai_large_v3_repo.get("tokenizer.json")?,
+      WhichWhisperModel::LiteWhisperLargeV3TurboFast => openai_large_v3_repo.get("tokenizer.json")?,
+      _ => repo.get("tokenizer.json")?,
+    };
     let model_filename = repo.get("model.safetensors")?;
 
     let config: Config = serde_json::from_str(&std::fs::read_to_string(config_filename)?)?;
