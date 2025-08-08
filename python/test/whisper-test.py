@@ -9,7 +9,7 @@ from os import path
 
 # --- Configuration ---
 # Use the same model you are using in your Rust code
-MODEL_ID = "onnx-community/lite-whisper-large-v3-ONNX"
+MODEL_ID = "onnx-community/lite-whisper-large-v3-turbo-fast-ONNX"
 # MODEL_ID = "onnx-community/whisper-large-v3-turbo"
 REVISION = "main"
 
@@ -35,10 +35,10 @@ def main():
     # ------------------------------------------------
     # The processor handles audio resampling and conversion to a mel spectrogram.
     # Using the official processor from transformers ensures our input is correct.
-    processor = WhisperProcessor.from_pretrained(MODEL_ID, local_files_only=True)
+    processor = WhisperProcessor.from_pretrained(MODEL_ID)
 
     # Download config to get model parameters
-    config_path = hf_hub_download(repo_id=MODEL_ID, filename="config.json", revision=REVISION, local_files_only=True)
+    config_path = hf_hub_download(repo_id=MODEL_ID, filename="config.json", revision=REVISION)
     with open(config_path) as f:
         config = json.load(f)
 
@@ -55,8 +55,8 @@ def main():
     # 2. Load ONNX Models
     # -------------------
     # Download the ONNX model files from the Hugging Face Hub
-    encoder_path = hf_hub_download(repo_id=MODEL_ID, filename="onnx/encoder_model.onnx", revision=REVISION, local_files_only=True)
-    decoder_path = hf_hub_download(repo_id=MODEL_ID, filename="onnx/decoder_model.onnx", revision=REVISION, local_files_only=True)
+    encoder_path = hf_hub_download(repo_id=MODEL_ID, filename="onnx/encoder_model.onnx", revision=REVISION)
+    decoder_path = hf_hub_download(repo_id=MODEL_ID, filename="onnx/decoder_model.onnx", revision=REVISION)
 
     print(f"Encoder path: {encoder_path}")
     print(f"Decoder path: {decoder_path}")

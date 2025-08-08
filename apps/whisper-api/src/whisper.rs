@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use anyhow::Result;
 use byteorder::{ByteOrder, LittleEndian};
 use candle_core::{Device, IndexOp, Tensor};
@@ -75,7 +77,61 @@ pub enum WhichWhisperModel {
   LiteWhisperLargeV3TurboFast,
 }
 
+impl Display for WhichWhisperModel {
+  fn fmt(
+    &self,
+    f: &mut std::fmt::Formatter<'_>,
+  ) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Tiny => "tiny",
+        Self::TinyEn => "tiny.en",
+        Self::Base => "base",
+        Self::BaseEn => "base.en",
+        Self::Small => "small",
+        Self::SmallEn => "small.en",
+        Self::Medium => "medium",
+        Self::MediumEn => "medium.en",
+        Self::Large => "large",
+        Self::LargeV2 => "large-v2",
+        Self::LargeV3 => "large-v3",
+        Self::LargeV3Turbo => "large-v3-turbo",
+        Self::DistilMediumEn => "distil-medium.en",
+        Self::DistilLargeV2 => "distil-large-v2",
+        Self::LiteWhisperLargeV3Turbo => "lite-whisper-large-v3-turbo",
+        Self::LiteWhisperLargeV3TurboAcc => "lite-whisper-large-v3-turbo-acc",
+        Self::LiteWhisperLargeV3TurboFast => "lite-whisper-large-v3-turbo-fast",
+      }
+    )
+  }
+}
+
 impl WhichWhisperModel {
+  pub fn from_str(s: &str) -> Option<Self> {
+    match s.to_lowercase().as_str() {
+      "tiny" => Some(Self::Tiny),
+      "tiny.en" => Some(Self::TinyEn),
+      "base" => Some(Self::Base),
+      "base.en" => Some(Self::BaseEn),
+      "small" => Some(Self::Small),
+      "small.en" => Some(Self::SmallEn),
+      "medium" => Some(Self::Medium),
+      "medium.en" => Some(Self::MediumEn),
+      "large" => Some(Self::Large),
+      "large-v2" => Some(Self::LargeV2),
+      "large-v3" => Some(Self::LargeV3),
+      "large-v3-turbo" => Some(Self::LargeV3Turbo),
+      "distil-medium.en" => Some(Self::DistilMediumEn),
+      "distil-large-v2" => Some(Self::DistilLargeV2),
+      "lite-whisper-large-v3-turbo" => Some(Self::LiteWhisperLargeV3Turbo),
+      "lite-whisper-large-v3-turbo-acc" => Some(Self::LiteWhisperLargeV3TurboAcc),
+      "lite-whisper-large-v3-turbo-fast" => Some(Self::LiteWhisperLargeV3TurboFast),
+      _ => None,
+    }
+  }
+
   pub const fn model_and_revision(self) -> (&'static str, &'static str) {
     match self {
       Self::Tiny => ("openai/whisper-tiny", "main"),

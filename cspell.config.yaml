@@ -23,12 +23,14 @@ words:
   - probs
   - Resampler
   - rngs
+  - rustfft
   - safetensors
   - Seedable
   - serde
   - silero
   - snac
   - softmax
+  - stft
   - unsqueeze
 ignoreWords: []
 import: []

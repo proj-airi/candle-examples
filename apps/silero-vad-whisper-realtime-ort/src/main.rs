@@ -131,5 +131,3 @@ async fn transcribe_audio(
   println!("📝 Transcript ({:.2}s): \"{}\"", duration.as_secs_f32(), transcript.trim());
   Ok(())
 }
-
-// ... (Your save_audio_chunk_to_file and write_wav_file functions remain the same)

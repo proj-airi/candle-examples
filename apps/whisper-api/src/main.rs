@@ -13,7 +13,7 @@ use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 
 use crate::{
-  router::transcribe_audio,
+  router::{list_models, transcribe_audio},
   vad::VADProcessor,
   whisper::{WhichWhisperModel, WhisperProcessor},
 };
@@ -102,24 +102,8 @@ impl AppState {
 
   // Parse model name string to WhichWhisperModel enum
   fn parse_model_name(model_name: &str) -> Result<WhichWhisperModel> {
-    match model_name.to_lowercase().as_str() {
-      "tiny" => Ok(WhichWhisperModel::Tiny),
-      "tiny.en" => Ok(WhichWhisperModel::TinyEn),
-      "base" => Ok(WhichWhisperModel::Base),
-      "base.en" => Ok(WhichWhisperModel::BaseEn),
-      "small" => Ok(WhichWhisperModel::Small),
-      "small.en" => Ok(WhichWhisperModel::SmallEn),
-      "medium" => Ok(WhichWhisperModel::Medium),
-      "medium.en" => Ok(WhichWhisperModel::MediumEn),
-      "large" => Ok(WhichWhisperModel::Large),
-      "large-v2" => Ok(WhichWhisperModel::LargeV2),
-      "large-v3" => Ok(WhichWhisperModel::LargeV3),
-      "large-v3-turbo" => Ok(WhichWhisperModel::LargeV3Turbo),
-      "distil-medium.en" => Ok(WhichWhisperModel::DistilMediumEn),
-      "distil-large-v2" => Ok(WhichWhisperModel::DistilLargeV2),
-      "lite-whisper-large-v3-turbo" => Ok(WhichWhisperModel::LiteWhisperLargeV3Turbo),
-      "lite-whisper-large-v3-turbo-acc" => Ok(WhichWhisperModel::LiteWhisperLargeV3TurboAcc),
-      "lite-whisper-large-v3-turbo-fast" => Ok(WhichWhisperModel::LiteWhisperLargeV3TurboFast),
+    match WhichWhisperModel::from_str(model_name) {
+      Some(model) => Ok(model),
       _ => anyhow::bail!("Unsupported Whisper model: {}. Supported models: tiny, base, small, medium, large, large-v2, large-v3, large-v3-turbo, distill-medium.en, distil-large-v2, lite-whisper-large-v3-turbo, lite-whisper-large-v3-turbo-acc, lite-whisper-large-v3-turbo-fast", model_name),
     }
   }
@@ -136,6 +120,7 @@ async fn main() -> Result<()> {
   // Build application routes
   let app = Router::new()
     .route("/healthz", get(health_check))
+    .route("/v1/models", get(list_models))
     .route("/v1/audio/transcriptions", post(transcribe_audio))
     .layer(
       ServiceBuilder::new()

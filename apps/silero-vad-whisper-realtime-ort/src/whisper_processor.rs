@@ -1,5 +1,3 @@
-// src/whisper_processor.rs
-
 use anyhow::{Result, anyhow};
 use byteorder::{ByteOrder, LittleEndian};
 use ndarray::{Array1, Array2, s};
@@ -60,12 +58,9 @@ impl WhisperProcessor {
 
     // 2. Compute the Short-Time Fourier Transform (STFT)
     let stft = self.stft(&pcm_data);
-
     // 3. Apply the mel filter bank
     let mel_spectrogram = self.mel_filters.dot(&stft);
-
     // 4. Apply logarithmic scaling
-
     self.log_mel_spectrogram(&mel_spectrogram)
   }
 
@@ -80,19 +75,16 @@ impl WhisperProcessor {
     // Pad the input data
     let mut padded_data = Array1::zeros(pcm_data.len() + N_FFT);
 
-    // --- FIX 1: Correct slicing for unsigned types ---
     let end = padded_data.len() - N_FFT / 2;
     padded_data
       .slice_mut(s![N_FFT / 2..end])
       .assign(pcm_data);
 
-    // --- FIX 2: Call .into_iter() before .step_by() ---
     let frames = padded_data
       .windows(N_FFT)
       .into_iter()
       .step_by(HOP_LENGTH);
 
-    // Initialize FFT planner
     let mut planner = FftPlanner::<f32>::new();
     let fft = planner.plan_fft_forward(N_FFT);
 
